@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | JCI UNIBEN TOYP 2026</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-page">
+
+    <div class="login-card">
+        <div class="auth-header">
+            <img src="https://toyp.jcinuniben.com/images/toyp.png" alt="JCI TOYP Logo" class="auth-logo" style="max-width: 140px; margin-bottom: 20px;">
+            <h1 style="font-weight: 700; color: var(--jci-black);">Admin Portal</h1>
+            <p style="color: var(--text-muted); font-size: 14px; margin-top: 5px;">Ten Outstanding Young Persons of UNIBEN</p>
+        </div>
+
+        <div id="loginError" style="display: none; align-items: center; gap: 10px; background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 20px; font-size: 13px; font-weight: 500;">
+            <i class='bx bx-error-circle' style="font-size: 18px;"></i>
+            <span id="errorText">Invalid email or password</span>
+        </div>
+
+        <form id="loginForm" class="auth-form" style="text-align: left; margin-top: 30px;">
+            <div class="input-group" style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: var(--jci-black);">Admin Email</label>
+                <div class="input-wrapper" style="position: relative;">
+                    <i class='bx bx-envelope' style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="email" id="email" placeholder="admin@jcinuniben.org" required 
+                           style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border-color); border-radius: 8px; outline: none; transition: 0.3s;">
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: var(--jci-black);">Password</label>
+                <div class="input-wrapper" style="position: relative;">
+                    <i class='bx bx-lock-alt' style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="password" id="password" placeholder="••••••••" required 
+                           style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border-color); border-radius: 8px; outline: none; transition: 0.3s;">
+                </div>
+            </div>
+
+            <div class="auth-options" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; font-size: 13px;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-muted);">
+                    <input type="checkbox"> Remember me
+                </label>
+                <a href="#" class="forgot-link" id="forgotTrigger" style="color: var(--jci-blue); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+            </div>
+
+            <button type="submit" id="signInBtn" class="btn-primary auth-submit" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; padding: 14px; position: relative; min-height: 48px;">
+                <span id="btnText">Sign In</span>
+                <i id="btnIcon" class='bx bx-right-arrow-alt'></i>
+                <div id="btnLoader" class="loader" style="display: none;"></div>
+            </button>
+        </form>
+
+        <div class="auth-footer" style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+            <p style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">© 2026 JCI UNIBEN TOYP</p>
+            <small style="color: #cbd5e1; font-weight: 500;">AUTHORIZED ACCESS ONLY</small>
+        </div>
+    </div>
+
+    <div id="forgotModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; margin: 20px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="font-size: 20px; font-weight: 700;">Reset Password</h2>
+                <button class="close-modal" id="closeForgot" style="background:none; border:none; font-size: 24px; cursor:pointer; color: var(--text-muted);">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; font-size: 14px; color: var(--text-muted); line-height: 1.5;">
+                    Enter your administrator email address and we will send you instructions to reset your password.
+                </p>
+                <div class="input-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Email Address</label>
+                    <div class="input-wrapper" style="position: relative;">
+                        <i class='bx bx-envelope' style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                        <input type="email" placeholder="admin@jcinuniben.org" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border-color); border-radius: 8px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top: 24px;">
+                <button class="btn-primary" style="width: 100%;" onclick="alert('Recovery email sent!')">Send Recovery Email</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple Login Simulation for Frontend UI Testing
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // UI Elements
+            const btn = document.getElementById('signInBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+            const loader = document.getElementById('btnLoader');
+            const errorBox = document.getElementById('loginError');
+
+            // 1. Enter Loading State
+            errorBox.style.display = 'none';
+            btn.disabled = true;
+            btnText.innerText = "Authenticating...";
+            btnIcon.style.display = 'none';
+            loader.style.display = 'block';
+
+            // 2. Simulate Server Delay (1.5 seconds)
+            setTimeout(() => {
+                // Validation Logic
+                if (email === "admin@jcinuniben.org" && password === "admin123") {
+                    window.location.href = 'dashboard.html?role=admin';
+                } 
+                else if (email === "auditor@jcinuniben.org" && password === "audit123") {
+                    window.location.href = 'dashboard.html?role=auditor';
+                } 
+                else {
+                    // 3. Handle Failure
+                    btn.disabled = false;
+                    btnText.innerText = "Sign In";
+                    btnIcon.style.display = 'block';
+                    loader.style.display = 'none';
+
+                    errorBox.style.display = 'flex';
+                    errorBox.classList.add('shake');
+                    setTimeout(() => errorBox.classList.remove('shake'), 500);
+                }
+            }, 1500);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | JCI UNIBEN TOYP 2026</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dashboard-body">
+
+    <aside class="sidebar">
+        <div class="sidebar-header" style="text-align: center;">
+            <img src= "https://toyp.jcinuniben.com/images/toyp.png" alt="JCI Logo" style="width: 80px; margin-bottom: 10px;">
+            <h3 style="font-size: 18px; letter-spacing: 1px;">TOYP Admin</h3>
+        </div>
+        
+        <nav class="sidebar-nav" style="margin-top: 40px;">
+            <a href="#" class="nav-item active" data-view="overview">
+                <i class='bx bxs-dashboard'></i> <span>Overview</span>
+            </a>
+            <a href="#" class="nav-item" data-view="nominations">
+                <i class='bx bxs-file-doc'></i> <span>Nominations</span>
+            </a>
+            <a href="#" class="nav-item" data-view="categories">
+                <i class='bx bxs-group'></i> <span>Categories</span>
+            </a>
+            <a href="#" class="nav-item" data-view="finalists">
+                <i class='bx bxs-award'></i> <span>Nominee / Finalists Management</span>
+            </a>
+            <a href="#" class="nav-item" data-view="voting">
+                <i class='bx bxs-check-shield'></i> <span>Voting Management</span>
+            </a>
+            <a href="#" class="nav-item" data-view="audit">
+                <i class='bx bxs-bar-chart-alt-2'></i> <span>Audit & Results</span>
+            </a>
+            <a href="#" class="nav-item" data-view="content">
+                <i class='bx bx-news'></i><span>Content & Announcements</span>
+            </a>
+            <hr style="opacity: 0.1; margin: 20px 0;">
+            <a href="index.html" class="nav-item logout" style="color: #fca5a5;">
+                <i class='bx bx-log-out'></i> <span>Logout</span>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <div class="mobile-header">
+            <button id="menu-toggle" style="background:none; border:none; font-size:24px; cursor:pointer;">
+                <i class='bx bx-menu'></i>
+            </button>
+            <img src="https://toyp.jcinuniben.com/images/toyp.png" alt="JCI" style="height:30px;">
+        </div>
+        
+        <header class="top-bar">
+            <div class="search-box" style="display: flex; align-items: center; background: var(--bg-slate); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); width: 300px;">
+                <i class='bx bx-search' style="color: var(--text-muted); margin-right: 10px;"></i>
+                <input type="text" placeholder="Search entries..." style="background: none; border: none; outline: none; width: 100%;">
+            </div>
+            <div class="admin-profile" style="display: flex; align-items: center; gap: 20px;">
+                <div class="role-badge" style="background: #e0f2fe; color: var(--jci-blue); padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 700;">
+                    Super Admin
+                </div>
+                <div class="profile-info" style="display: flex; align-items: center; gap: 10px;">
+                    <span class="user-name" style="font-weight: 600;">Admin User</span>
+                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=0097D7&color=fff" alt="Avatar" style="width: 35px; border-radius: 50%;">
+                </div>
+            </div>
+        </header>
+
+        <div id="content-area" class="content-padding">
+            
+            <div class="view-header">
+                <h1 style="font-size: 28px; font-weight: 700;">Dashboard Overview</h1>
+                <p style="color: var(--text-muted);">Managing the 2026 JCI UNIBEN TOYP Cycle.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Total Nominations</span>
+                        <h2 style="font-size: 32px; margin-top: 5px;">452</h2>
+                    </div>
+                    <i class='bx bxs-group' style="font-size: 32px; color: var(--jci-blue);"></i>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Categories</span>
+                        <h2 style="font-size: 32px; margin-top: 5px;">10</h2>
+                    </div>
+                    <i class='bx bxs-list-ul' style="font-size: 32px; color: var(--jci-yellow);"></i>
+                </div>
+                <div class="stat-card" style="border-bottom-color: var(--jci-teal);">
+                    <div class="stat-info">
+                        <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Verified Votes</span>
+                        <h2 style="font-size: 32px; margin-top: 5px;">1,205</h2>
+                    </div>
+                    <i class='bx bxs-badge-check' style="font-size: 32px; color: var(--jci-teal);"></i>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h3 style="font-weight: 700;">Recent Nominations</h3>
+                    <div class="table-filters">
+                        <select class="view-btn"><option>All Categories</option></select>
+                    </div>
+                </div>
+                
+                <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 12px; border-bottom: 2px solid var(--bg-slate); color: var(--text-muted); font-size: 12px;">NOMINEE NAME</th>
+                            <th style="padding: 12px; border-bottom: 2px solid var(--bg-slate); color: var(--text-muted); font-size: 12px;">CATEGORY</th>
+                            <th style="padding: 12px; border-bottom: 2px solid var(--bg-slate); color: var(--text-muted); font-size: 12px;">STATUS</th>
+                            <th style="padding: 12px; border-bottom: 2px solid var(--bg-slate); color: var(--text-muted); font-size: 12px;">PUBLIC VISIBILITY</th>
+                            <th style="padding: 12px; border-bottom: 2px solid var(--bg-slate); color: var(--text-muted); font-size: 12px;">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">Osasere Idahosa</td>
+                            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">Academic Excellence</td>
+                            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><span class="status-badge pending">Pending</span></td>
+                            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+                                <label class="switch-ui">
+                                    <input type="checkbox" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </td>
+                            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><button class="view-btn review-trigger">Review</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 750px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                <h2 style="font-weight: 700;">Nomination Details</h2>
+                <button class="close-modal" style="background:none; border:none; font-size: 28px; cursor:pointer; color: var(--text-muted);">&times;</button>
+            </div>
+
+            <div class="modal-body" id="modal-data">
+                </div>
+
+        </div>
+    </div>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
