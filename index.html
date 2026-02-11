@@ -113,10 +113,12 @@
             // 2. Simulate Server Delay (1.5 seconds)
             setTimeout(() => {
                 // Validation Logic
-                if (email === "admin@jcinuniben.org" && password === "admin123") {
+                 if (email === "admin@jcinuniben.org" && password === "admin123") {
+                    localStorage.setItem('activeUserRole', 'admin');
                     window.location.href = 'dashboard.html?role=admin';
                 } 
                 else if (email === "auditor@jcinuniben.org" && password === "audit123") {
+                    localStorage.setItem('activeUserRole', 'auditor');
                     window.location.href = 'dashboard.html?role=auditor';
                 } 
                 else {
