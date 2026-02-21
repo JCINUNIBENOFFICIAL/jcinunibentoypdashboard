@@ -287,8 +287,6 @@ function openDossierModal() {
 }
 
 
-
-
 // 4. CORE CONTROLLER
 document.addEventListener('DOMContentLoaded', async () => {
     const contentArea = document.getElementById('content-area');
