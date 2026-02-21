@@ -1,0 +1,60 @@
+<!-- Final Results & Audit view - review certified voting results and export official reports -->
+<template>
+	<div class="view-header">
+		<h1>Final Results & Audit</h1>
+		<div class="header-actions">
+			<button class="btn-primary" style="background: var(--jci-blue);">
+				<i class='bx bxs-file-pdf'></i> Export Certified Results
+			</button>
+		</div>
+	</div>
+
+	<div class="result-section" style="margin-bottom: 40px;">
+		<div class="category-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+			<i class='bx bxs-graduation' style="color: var(--jci-blue); font-size: 24px;"></i>
+			<h2 style="font-size: 16px; color: var(--text-main);">Academic Excellence & Scholastic Achievement</h2>
+		</div>
+
+		<div class="card">
+			<div class="table-responsive">
+				<table style="width: 100%; text-align: left; border-collapse: collapse;">
+					<thead>
+						<tr style="font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--bg-slate);">
+							<th style="padding: 12px; width: 80px;">RANK</th>
+							<th style="padding: 12px;">NOMINEE</th>
+							<th style="padding: 12px;">VOTES</th>
+							<th style="padding: 12px;">PERCENTAGE</th>
+							<th style="padding: 12px;">STATUS</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr style="background: #f0fdf4;">
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 800; color: #166534;">#1</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+								<div style="font-weight: 600;">Osasere Idahosa</div>
+								<div style="font-size: 11px; color: var(--text-muted);">JCI-TOYP-001</div>
+							</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">1,240</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">94/100</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+								<span class="status-badge status-honouree">Honouree</span>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600; color: var(--text-muted);">#2</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+								<div style="font-weight: 600;">Blessing Adebayo</div>
+								<div style="font-size: 11px; color: var(--text-muted);">JCI-TOYP-015</div>
+							</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">1,105</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">88/100</td>
+							<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+								<span class="status-badge status-finalist">Finalist</span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</template>

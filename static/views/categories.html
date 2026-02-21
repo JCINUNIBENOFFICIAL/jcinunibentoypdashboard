@@ -1,0 +1,55 @@
+<!-- Category Management view - configure TOYP award categories and their visibility -->
+<template>
+	<div class="view-header">
+		<h1>Category Management</h1>
+		<button class="btn-primary" id="add-cat-trigger">
+			<i class='bx bx-plus-circle'></i> Add New Category
+		</button>
+	</div>
+
+	<div class="stats-grid" style="margin-bottom: 25px;">
+		<div class="stat-card">
+			<div class="stat-info"><span>Active Categories</span><h2>10</h2></div>
+			<i class='bx bxs-category' style="color: var(--jci-blue); font-size: 24px;"></i>
+		</div>
+		<div class="stat-card">
+			<div class="stat-info"><span>Currently Hidden</span><h2 style="color: #ef4444;">2</h2></div>
+			<i class='bx bxs-hide' style="color: #ef4444; font-size: 24px;"></i>
+		</div>
+	</div>
+
+	<div class="card">
+		<div class="table-responsive">
+			<table style="width: 100%; text-align: left; border-collapse: collapse; min-width: 800px;">
+				<thead>
+					<tr style="font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--bg-slate);">
+						<th style="padding: 12px; width: 25%;">CATEGORY NAME</th>
+						<th style="padding: 12px; width: 35%;">DESCRIPTION</th>
+						<th style="padding: 12px; width: 15%; text-align: center;">PUBLIC STATUS</th>
+						<th style="padding: 12px; width: 10%;">ENTRIES</th>
+						<th style="padding: 12px; width: 15%;">ACTIONS</th>
+					</tr>
+				</thead>
+				<tbody id="category-table-body">
+					<tr>
+						<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">Academic Excellence</td>
+						<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px; color: var(--text-muted);">Recognition for scholastic achievement...</td>
+						<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
+							<label class="switch-ui">
+								<input type="checkbox" class="cat-toggle" checked>
+								<span class="slider"></span>
+							</label>
+						</td>
+						<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">85</td>
+						<td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+							<div style="display: flex; gap: 8px;">
+								<button class="view-btn edit-cat-trigger" data-name="Academic Excellence" data-desc="Recognition for scholastic..."><i class='bx bx-edit-alt'></i></button>
+								<button class="view-btn delete-cat" style="color: #ef4444;"><i class='bx bx-trash'></i></button>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</template>

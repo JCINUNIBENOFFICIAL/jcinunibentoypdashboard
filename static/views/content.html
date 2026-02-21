@@ -1,0 +1,48 @@
+<!-- Content & Announcements view - manage public portal landing page content and broadcast messages -->
+<template>
+	<div class="view-header">
+		<h1>Content & Announcements</h1>
+		<button class="btn-primary" id="publish-all-btn">
+			<i class='bx bx-cloud-upload'></i> Publish Changes
+		</button>
+	</div>
+
+	<div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
+		<div class="card">
+			<h3 style="margin-bottom: 15px; font-size: 14px; color: var(--jci-blue);">Portal Landing Page Content</h3>
+
+			<div style="display: flex; flex-direction: column; gap: 15px;">
+				<div>
+					<label class="modal-label">Hero Title</label>
+					<input type="text" value="JCI UNIBEN TOYP 2026" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px;">
+				</div>
+				<div>
+					<label class="modal-label">Welcome Message (About)</label>
+					<textarea rows="6" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px; font-family: inherit; font-size: 13px;">The Ten Outstanding Young Persons (TOYP) program serves to formally recognize young people who excel in their chosen fields...</textarea>
+				</div>
+			</div>
+		</div>
+
+		<div class="card" style="border-top: 4px solid var(--jci-teal);">
+			<h3 style="margin-bottom: 15px; font-size: 14px; color: var(--jci-teal);">Broadcast Announcement</h3>
+			<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">This will appear as a banner on the public nomination site.</p>
+
+			<div style="display: flex; flex-direction: column; gap: 12px;">
+				<input type="text" id="announcement-title" placeholder="Announcement Title (e.g. Deadline Extended)" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px;">
+				<textarea id="announcement-body" placeholder="Message body..." rows="3" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px; font-family: inherit;"></textarea>
+
+				<button class="btn-primary" style="background: var(--jci-teal); border: none; width: 100%;" id="send-announcement">
+					<i class='bx bx-send'></i> Post Announcement
+				</button>
+			</div>
+
+			<div style="margin-top: 20px; border-top: 1px solid var(--bg-slate); padding-top: 15px;">
+				<label class="modal-label">Active Banners</label>
+				<div style="background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #dcfce7; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+					<span style="font-size: 12px; color: #166534;">"Nomination deadline: Feb 28th"</span>
+					<i class='bx bx-x' style="cursor: pointer; color: #166534;"></i>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>

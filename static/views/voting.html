@@ -1,0 +1,46 @@
+<!-- Voting Management view - control public voting sessions and monitor real-time ballot counts -->
+<template>
+	<div class="view-header">
+		<h1>Voting Management</h1>
+		<div class="header-actions">
+			<span class="status-badge pending" id="v-status">Phase: Paused</span>
+		</div>
+	</div>
+
+	<div id="voting-banner" class="voting-banner locked">
+		<i class='bx bxs-lock'></i>
+		<span>VOTING IS CURRENTLY LOCKED: Public access is disabled.</span>
+	</div>
+
+	<div class="stats-grid" style="margin-bottom: 25px;">
+		<div class="stat-card" style="border-left: 4px solid var(--jci-teal);">
+			<div class="stat-info">
+				<span>Total Ballots Cast</span>
+				<h2 id="live-vote-count">1,205</h2>
+			</div>
+			<div class="live-indicator">
+				<span class="dot"></span> Live
+			</div>
+		</div>
+		<div class="stat-card" style="border-left: 4px solid var(--jci-yellow);">
+			<div class="stat-info">
+				<span>Time Remaining</span>
+				<h2 id="voting-timer">00:00:00</h2>
+			</div>
+			<i class='bx bx-timer' style="color: var(--jci-yellow); font-size: 24px;"></i>
+		</div>
+	</div>
+
+	<div class="card" style="margin-bottom: 25px;">
+		<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+			<div>
+				<h3 style="margin-bottom: 5px;">Public Portal Control</h3>
+				<p style="color: var(--text-muted); font-size: 14px;">Launch the 2026 voting cycle or terminate early.</p>
+			</div>
+			<div style="display: flex; gap: 10px;">
+				<button class="btn-primary" id="start-v" style="background: var(--jci-teal); padding: 10px 20px;">Open Voting</button>
+				<button class="btn-reject" id="stop-v" style="display:none; padding: 10px 20px;">Close Voting</button>
+			</div>
+		</div>
+	</div>
+</template>
