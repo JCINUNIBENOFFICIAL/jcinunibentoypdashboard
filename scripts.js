@@ -3,10 +3,13 @@
  * Includes: Nominations, Voting, Audit, and Category Config
  */
 
-// 1. SYSTEM STATE & SECURITY (Requirement 2)
+// 1. SYSTEM STATE & SECURITY
+
+const sessionRole = localStorage.getItem('activeUserRole'); 
+
 const currentUser = {
-    name: "Admin User",
-    role: "super-admin", // Toggle to 'auditor' to test Read-Only mode
+    name: sessionRole === 'auditor' ? "Audit User" : "Admin User",
+    role: sessionRole === 'auditor' ? "auditor" : "super-admin",
     isAuthenticated: true
 };
 
@@ -433,6 +436,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentArea = document.getElementById('content-area');
     const navItems = document.querySelectorAll('.nav-item');
     const modal = document.getElementById('detailsModal');
+
+     updateProfileUI(); // Update profile UI on load
+
+    // Security Role Application
+    
+    if (currentUser.role === 'auditor') {
+        applySecurityRoles();
+    }
+    
+    //update profile UI function
+    function updateProfileUI() {
+        // These classes (.user-name, .user-role) must exist in your index.html
+        const userNameElement = document.querySelector('.user-name'); 
+        const userRoleElement = document.querySelector('.user-role'); 
+
+        if (userNameElement) userNameElement.innerText = currentUser.name;
+        if (userRoleElement) userRoleElement.innerText = currentUser.role;
+    }
+
     // voting timer logic
     let timerInterval;
 
