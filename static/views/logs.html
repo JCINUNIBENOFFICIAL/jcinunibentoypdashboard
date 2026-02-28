@@ -1,0 +1,22 @@
+<template>
+  <div class="view-header">
+    <h1>Activity Logs</h1>
+    <p>System activity aggregated from nominations, votes and categories.</p>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table style="width: 100%; text-align: left; border-collapse: collapse; min-width: 600px;">
+        <thead>
+          <tr style="font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--bg-slate);">
+            <th style="padding: 12px;">TIME</th>
+            <th style="padding: 12px;">ACTIVITY</th>
+            <th style="padding: 12px;">USER</th>
+            <th style="padding: 12px;">STATUS</th>
+          </tr>
+        </thead>
+        <tbody id="logs-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</template>

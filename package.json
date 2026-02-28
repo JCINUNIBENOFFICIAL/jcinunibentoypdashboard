@@ -1,7 +1,35 @@
 {
+  "name": "jcin-uniben-toyp-dashboard",
+  "version": "1.0.0",
+  "description": "Backend API for JCIN UNIBEN TOYP dashboard and nomination system",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.4",
     "pg": "^8.18.0",
     "postgres": "^3.4.8"
-  }
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "supabase",
+    "dashboard",
+    "jci",
+    "uniben",
+    "toyp"
+  ],
+  "author": "JCIN UNIBEN Web Team",
+  "license": "MIT"
 }

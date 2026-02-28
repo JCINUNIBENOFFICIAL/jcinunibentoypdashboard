@@ -15,19 +15,19 @@ const currentUser = {
 // 2. VIEW TEMPLATES (Requirement 3B - 3H)
 const templateViews = {
     overview: {
-        filePath: './views/overview.html',
+        filePath: '/views/overview.html',
         htmlContent: '',
     },
     nominations: {
-        filePath: './views/nominations.html',
+        filePath: '/views/nominations.html',
         htmlContent: '',
     },
     categories: {
-        filePath: './views/categories.html',
+        filePath: '/views/categories.html',
         htmlContent: '',
     },
     finalists: {
-        filePath: './views/finalists.html',
+        filePath: '/views/finalists.html',
         htmlContent: '',
     },
     voting: {
@@ -35,11 +35,15 @@ const templateViews = {
         htmlContent: '',
     },
     audit: {
-        filePath: './views/audit.html',
+        filePath: '/views/audit.html',
+        htmlContent: '',
+    },
+    logs: {
+        filePath: '/views/logs.html',
         htmlContent: '',
     },
     content: {
-        filePath: './views/content.html',
+        filePath: '/views/content.html',
         htmlContent: '',
     },
 };
@@ -155,45 +159,55 @@ function applySecurityRoles() {
  * 
  * @returns {void}
  */
-function openNominationModal() {
+function openNominationModal(nomination = null) {
+    const modal = document.getElementById('detailsModal');
     const modalBody = document.getElementById('modal-data');
+    if (!nomination) {
+        modalBody.innerHTML = '<div style="padding:20px">No nomination data available.</div>';
+        modal.style.display = 'flex';
+        return;
+    }
+
+    // count how many times this nominee appears (same email)
+    const nomineeEmail = nomination.nominee_email;
+    // we can compute occurrences from the currently loaded table if available
+    const rows = document.querySelectorAll('#content-area tbody tr');
+    let occurrences = 1;
+    if (rows.length) {
+        occurrences = Array.from(rows).reduce((acc, r) => {
+            const emailCell = r.querySelector('td[data-email]');
+            if (!emailCell) return acc;
+            return acc + (emailCell.dataset.email === nomineeEmail ? 1 : 0);
+        }, 0);
+    }
+
     modalBody.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 20px;">
-                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--bg-slate);">
                     <div>
                         <h3 style="color: var(--jci-blue); font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Nominee Profile</h3>
-                        <p style="font-weight: 700; font-size: 15px;">Osasere Idahosa</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">osas.idahosa@example.com</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">+234 xxx xxx xxxx</p>
+                        <p style="font-weight: 700; font-size: 15px;">${nomination.nominee_name}</p>
+                        <p style="font-size: 13px; color: var(--text-muted);">${nomination.nominee_email}</p>
+                        <p style="font-size: 13px; color: var(--text-muted);">${nomination.whatsapp_contact || ''}</p>
+                        <p style="font-size: 13px; color: var(--text-muted);">Nominated ${occurrences} time(s)</p>
                     </div>
                     <div>
                         <h3 style="color: var(--jci-teal); font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Nominator Details</h3>
-                        <p style="font-weight: 700; font-size: 15px;">Dr. Kelvin Uwaila</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">k.uwaila@jcinuniben.edu</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">+234 xxx xxx xxxx</p>
+                        <p style="font-weight: 700; font-size: 15px;">${nomination.nominator_email}</p>
+                        <p style="font-size: 13px; color: var(--text-muted);">${nomination.faculty || ''} — ${nomination.department || ''}</p>
                     </div>
                 </div>
 
                 <div>
                     <h3 style="font-size: 12px; margin-bottom: 10px; text-transform: uppercase; color: var(--text-muted);">Nominee Achievement Write-up</h3>
                     <div style="background: var(--bg-slate); padding: 15px; border-radius: 8px; font-size: 14px; line-height: 1.6; color: var(--text-main);">
-                        "The nominee has developed a low-cost solar inverter system currently used by 15 rural schools in Edo State. This project has provided consistent electricity to over 5,000 students, enabling the use of digital learning tools for the first time in these communities. Osasere led a team of 5 student engineers to build these units using locally sourced recycled materials..."
+                        ${nomination.reason || ''}
                     </div>
                 </div>
 
                 <div>
-                    <h3 style="font-size: 12px; margin-bottom: 10px; text-transform: uppercase; color: var(--text-muted);">Evidence & Attachments</h3>
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                        <div style="border: 1px solid var(--bg-slate); padding: 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <i class='bx bxs-file-pdf' style="color: #ef4444; font-size: 20px;"></i>
-                            <span style="font-size: 12px;">Project_Report.pdf</span>
-                        </div>
-                        <div style="border: 1px solid var(--bg-slate); padding: 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <i class='bx bxs-image' style="color: var(--jci-blue); font-size: 20px;"></i>
-                            <span style="font-size: 12px;">Installation_Photo.jpg</span>
-                        </div>
-                    </div>
+                    <h3 style="font-size: 12px; margin-bottom: 10px; text-transform: uppercase; color: var(--text-muted);">Category</h3>
+                    <div style="padding:8px 12px; border-radius:6px; background:var(--bg-slate);">${nomination.category || ''}</div>
                 </div>
 
                 <div class="modal-footer" style="margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--bg-slate); display: flex; gap: 10px; justify-content: flex-end;">
@@ -203,7 +217,7 @@ function openNominationModal() {
                     <button class="btn-primary reject-trigger" style="background: #ef4444; color: white; border: 1px solid var(--border-color);">
                         <i class='bx bx-x'></i> Reject
                     </button>
-                    <button class="btn-primary approve-trigger" style="background: var(--jci-teal);">
+                    <button class="btn-primary approve-trigger" data-id="${nomination.id}" style="background: var(--jci-teal);">
                         <i class='bx bx-check'></i> Approve Nomination
                     </button>
                 </div>
@@ -259,6 +273,15 @@ function openCategoryModal(isEdit = false, data = {}) {
             </div>
         `;
     modal.style.display = 'flex';
+    // mark save button with edit id when editing so handler knows to PATCH instead of POST
+    const saveBtn = document.getElementById('save-category-btn');
+    if (saveBtn) {
+        if (isEdit && data && data.id) {
+            saveBtn.dataset.editId = data.id;
+        } else {
+            delete saveBtn.dataset.editId;
+        }
+    }
 }
 
 /**
@@ -318,7 +341,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Update your Click Listener for Voting
-    document.addEventListener('click', (e) => {
+    // Event Delegation
+    document.addEventListener('click', async (e) => {
         const banner = document.getElementById('voting-banner');
         const statusLabel = document.getElementById('v-status');
 
@@ -358,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Default View
-    contentArea.innerHTML = await getViewMarkup('overview');
+    await loadOverview();
 
     // Navigation Switcher Logic
     navItems.forEach(item => {
@@ -374,18 +398,221 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (viewMarkup) {
                 contentArea.innerHTML = viewMarkup;
                 applySecurityRoles();
+                if (viewKey === 'overview') await loadOverview();
+                if (viewKey === 'nominations') await loadNominations();
+                if (viewKey === 'categories') await loadCategories();
             }
         });
     });
 
-    // Event Delegation
+    // when cards are clicked in overview, navigate to matching view
     document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('review-trigger')) openNominationModal();
+        const card = e.target.closest('.stat-card');
+        if (card) {
+            let viewKey = card.getAttribute('data-view');
+            if (!viewKey) {
+                // fallback to index mapping
+                const idx = Array.from(document.querySelectorAll('.stats-grid .stat-card')).indexOf(card);
+                const mapping = ['nominations','categories','voting','nominations'];
+                viewKey = mapping[idx] || 'overview';
+            }
+            const navItem = document.querySelector(`.nav-item[data-view="${viewKey}"]`);
+            if (navItem) navItem.click();
+        }
+    });
+
+    // helper to load overview data
+    async function loadOverview() {
+        const template = await getViewMarkup('overview');
+        contentArea.innerHTML = template;
+        applySecurityRoles();
+        // fetch counts and update numbers
+        try {
+            const resp = await fetch('/api/counts');
+            const json = await resp.json();
+            if (json.success) {
+                const { nominations, votes, categories, verified, pending } = json.data;
+                const cards = document.querySelectorAll('.stats-grid .stat-card h2');
+                if (cards[0]) cards[0].textContent = nominations;
+                if (cards[1]) cards[1].textContent = verified || 0;
+                if (cards[2]) cards[2].textContent = votes;
+                if (cards[3]) cards[3].textContent = (typeof pending !== 'undefined') ? pending : (nominations - (verified || 0));
+            }
+        } catch (err) {
+            console.error('failed to fetch counts', err);
+        }
+        // wire "View All Logs" button to open logs view
+        const viewLogsBtn = document.querySelector('.view-btn');
+        if (viewLogsBtn && viewLogsBtn.textContent.includes('View All Logs')) {
+            viewLogsBtn.addEventListener('click', async () => {
+                const viewMarkup = await getViewMarkup('logs');
+                contentArea.innerHTML = viewMarkup;
+                applySecurityRoles();
+                await loadLogs();
+            });
+        }
+    }
+
+    async function loadLogs() {
+        try {
+            const resp = await fetch('/api/logs');
+            const json = await resp.json();
+            if (!json.success) return;
+            const events = json.data || [];
+            const tbody = document.getElementById('logs-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            events.forEach(ev => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 12px;">${new Date(ev.time).toLocaleString()}</td>
+                    <td style="padding: 12px;">${ev.activity}</td>
+                    <td style="padding: 12px;">${ev.user}</td>
+                    <td style="padding: 12px;"><span class="status-badge">${ev.status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error('failed to load logs', err);
+        }
+    }
+
+    // load categories list and populate categories view
+    async function loadCategories() {
+        try {
+            const resp = await fetch('/api/categories');
+            const json = await resp.json();
+            if (!json.success) return;
+            const cats = json.data || [];
+            const tbody = document.getElementById('category-table-body');
+            if (tbody) {
+                tbody.innerHTML = '';
+                cats.forEach(cat => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${cat.name}</td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px; color: var(--text-muted);">${cat.description || ''}</td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
+                            <label class="switch-ui">
+                                <input type="checkbox" class="cat-toggle" data-id="${cat.id}" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">-</td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+                            <div style="display: flex; gap: 8px;">
+                                <button class="view-btn edit-cat-trigger" data-id="${cat.id}" data-name="${cat.name}" data-desc="${cat.description || ''}"><i class='bx bx-edit-alt'></i></button>
+                                <button class="view-btn delete-cat" data-id="${cat.id}" style="color: #ef4444;"><i class='bx bx-trash'></i></button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            // update stat cards in categories view
+            const activeCard = document.querySelector('.stat-info h2');
+            const hiddenCard = document.querySelectorAll('.stat-info h2')[1];
+            if (activeCard) activeCard.textContent = cats.length;
+            if (hiddenCard) hiddenCard.textContent = '0';
+        } catch (err) {
+            console.error('failed to load categories', err);
+        }
+    }
+
+    // fetch and display nominations list in nominations view
+    async function loadNominations() {
+        try {
+            const resp = await fetch('/api/nominations');
+            const json = await resp.json();
+            if (json.success) {
+                const nominations = json.data;
+                const tbody = document.querySelector('#content-area tbody');
+                if (!tbody) return;
+                tbody.innerHTML = ''; // clear existing
+                // keep a map for quick lookup when opening modal
+                window.__NOMINATIONS_MAP__ = {};
+                nominations.forEach(nom => {
+                    window.__NOMINATIONS_MAP__[nom.id] = nom;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">${new Date(nom.created_at).toLocaleString()}</td>
+                        <td data-email="${nom.nominee_email || ''}" style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${nom.nominee_name}</td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">${nom.category || ''}</td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><span class="status-badge ${nom.status || 'pending'}">${nom.status || 'Pending'}</span></td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+                            <label class="switch-ui"><input type="checkbox" ${nom.public ? 'checked' : ''}><span class="slider"></span></label>
+                        </td>
+                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><button class="view-btn review-trigger" data-id="${nom.id}">Review</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (err) {
+            console.error('error loading nominations', err);
+                }
+
+                // wire export button to download CSV of current nominations
+                const exportBtn = document.getElementById('export-nominations-btn');
+                if (exportBtn) {
+                    exportBtn.onclick = async () => {
+                        // use the nominations map if present, otherwise fetch fresh
+                        let items = Object.values(window.__NOMINATIONS_MAP__ || {});
+                        if (!items.length) {
+                            const r = await fetch('/api/nominations');
+                            const j = await r.json();
+                            items = j.success ? j.data : [];
+                        }
+                        if (!items.length) return alert('No nominations to export');
+                        const csvRows = [];
+                        const headers = ['id','nominee_name','nominee_email','nominator_email','category','faculty','department','level','created_at'];
+                        csvRows.push(headers.join(','));
+                        items.forEach(it => {
+                            const row = headers.map(h => '"'+String(it[h]||'').replace(/"/g,'""')+'"').join(',');
+                            csvRows.push(row);
+                        });
+                        const csv = csvRows.join('\n');
+                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `nominations_export_${new Date().toISOString().slice(0,10)}.csv`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    };
+                }
+    }
+
+    // Event Delegation
+    document.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('review-trigger')) {
+            const id = e.target.getAttribute('data-id');
+            const nom = (window.__NOMINATIONS_MAP__ || {})[id];
+            openNominationModal(nom);
+            return;
+        }
         if (e.target.classList.contains('close-modal')) modal.style.display = 'none';
         //nomination approval Workflow
         if (e.target.closest('.approve-trigger')) {
-            alert("Nomination Approved and moved to Verified status.");
-            modal.style.display = 'none';
+            const btn = e.target.closest('.approve-trigger');
+            const id = btn.getAttribute('data-id');
+            if (!id) return alert('Nomination id missing');
+            if (!confirm('Approve this nomination and mark as Verified?')) return;
+            // call server to update status
+            fetch(`/api/nominations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'verified' }) })
+                .then(r => r.json())
+                .then(j => {
+                    if (j.success) {
+                        alert('Nomination marked Verified');
+                        modal.style.display = 'none';
+                        // refresh list and overview
+                        loadNominations();
+                        loadOverview();
+                    } else {
+                        alert('Failed to update nomination');
+                        console.error(j);
+                    }
+                }).catch(err => { console.error(err); alert('Network error'); });
+            return;
         }
         // Nomination flagging Workflow
         if (e.target.closest('.flag-trigger')) {
@@ -433,23 +660,70 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target.id === 'add-cat-trigger') {
             openCategoryModal(false);
         }
-        // Trigger for Edit Category
+        // Trigger for Edit Category (pass id so save can PATCH)
         if (e.target.closest('.edit-cat-trigger')) {
             const btn = e.target.closest('.edit-cat-trigger');
+            const id = btn.getAttribute('data-id');
             const name = btn.getAttribute('data-name');
             const desc = btn.getAttribute('data-desc'); // Now fetching description
-            openCategoryModal(true, { name, desc });
+            openCategoryModal(true, { id, name, desc });
         }
-        // Handle the "Save" inside the modal
+
+        // Handle the "Save" inside the modal (create or update)
         if (e.target.id === 'save-category-btn') {
             const newName = document.getElementById('cat-name-input').value;
             const newDesc = document.getElementById('cat-desc-input').value;
+            const saveBtn = document.getElementById('save-category-btn');
+            const editId = saveBtn ? saveBtn.dataset.editId : null;
 
-            if (newName.trim() !== "" && newDesc.trim() !== "") {
-                alert("Success: '" + newName + "' has been updated in the database.");
+            if (newName.trim() === "" || newDesc.trim() === "") {
+                return alert("Please fill in both the Category Name and Description.");
+            }
+
+            // prepare payload
+            const payload = { name: newName.trim(), description: newDesc.trim() };
+
+            try {
+                if (editId) {
+                    // update existing category
+                    const resp = await fetch(`/api/categories/${editId}`, {
+                        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                    });
+                    const j = await resp.json();
+                    if (!j.success) throw new Error(j.error || 'failed');
+                    alert(`Success: '${newName}' updated.`);
+                } else {
+                    // create new category
+                    const resp = await fetch('/api/categories', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                    });
+                    const j = await resp.json();
+                    if (!j.success) throw new Error(j.error || 'failed');
+                    alert(`Success: '${newName}' created.`);
+                }
                 document.getElementById('detailsModal').style.display = 'none';
-            } else {
-                alert("Please fill in both the Category Name and Description.");
+                await loadCategories();
+            } catch (err) {
+                console.error('category save error', err);
+                alert('Failed to save category');
+            }
+        }
+
+        // Trigger for Deleting a Category
+        if (e.target.closest('.delete-cat')) {
+            const btn = e.target.closest('.delete-cat');
+            const id = btn.getAttribute('data-id');
+            if (!id) return alert('Category id missing');
+            if (!confirm('Delete this category? This action cannot be undone.')) return;
+            try {
+                const resp = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+                const j = await resp.json();
+                if (!j.success) throw new Error(j.error || 'failed');
+                alert('Category deleted');
+                await loadCategories();
+            } catch (err) {
+                console.error('failed to delete category', err);
+                alert('Failed to delete category');
             }
         }
 
