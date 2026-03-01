@@ -6,3 +6,5 @@ package-lock.json
 # environment and secret files
 .env
 databaseCredentials.json
+
+static/config.js

@@ -12,6 +12,9 @@ const currentUser = {
 };
 
 
+// Import Supabase client (requires `static/config.js` to set window.SUPABASE_URL and window.SUPABASE_ANON_KEY)
+import { supabase } from './supabase-client.js';
+
 // 2. VIEW TEMPLATES (Requirement 3B - 3H)
 const templateViews = {
     overview: {
@@ -426,21 +429,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const template = await getViewMarkup('overview');
         contentArea.innerHTML = template;
         applySecurityRoles();
-        // fetch counts and update numbers
-        try {
-            const resp = await fetch('/api/counts');
-            const json = await resp.json();
-            if (json.success) {
-                const { nominations, votes, categories, verified, pending } = json.data;
+            // fetch counts directly from Supabase
+            try {
+                const [{ count: nominations }, { count: votes }, { count: categories }] = await Promise.all([
+                    supabase.from('nominations').select('id', { count: 'exact', head: true }),
+                    supabase.from('votes').select('id', { count: 'exact', head: true }),
+                    supabase.from('categories').select('id', { count: 'exact', head: true }),
+                ]);
+
+                // try verified count
+                let verified = 0;
+                try {
+                    const { count: verifiedCount } = await supabase.from('nominations').select('id', { count: 'exact', head: true }).eq('status', 'verified');
+                    verified = verifiedCount || 0;
+                } catch (e) { /* ignore */ }
+
+                const pending = (nominations || 0) - verified;
                 const cards = document.querySelectorAll('.stats-grid .stat-card h2');
-                if (cards[0]) cards[0].textContent = nominations;
-                if (cards[1]) cards[1].textContent = verified || 0;
-                if (cards[2]) cards[2].textContent = votes;
-                if (cards[3]) cards[3].textContent = (typeof pending !== 'undefined') ? pending : (nominations - (verified || 0));
+                if (cards[0]) cards[0].textContent = nominations || '--';
+                if (cards[1]) cards[1].textContent = verified || '--';
+                if (cards[2]) cards[2].textContent = votes || '--';
+                if (cards[3]) cards[3].textContent = typeof pending === 'number' ? pending : '--';
+            } catch (err) {
+                console.error('failed to fetch counts', err);
             }
-        } catch (err) {
-            console.error('failed to fetch counts', err);
-        }
         // wire "View All Logs" button to open logs view
         const viewLogsBtn = document.querySelector('.view-btn');
         if (viewLogsBtn && viewLogsBtn.textContent.includes('View All Logs')) {
@@ -455,14 +467,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadLogs() {
         try {
-            const resp = await fetch('/api/logs');
-            const json = await resp.json();
-            if (!json.success) return;
-            const events = json.data || [];
+            const limit = 50;
+            const [{ data: noms }, { data: vts }, { data: cats }] = await Promise.all([
+                supabase.from('nominations').select('id, nominee_name, nominator_email, created_at, category').order('created_at', { ascending: false }).limit(limit),
+                supabase.from('votes').select('id, nomination_id, voter_email, created_at').order('created_at', { ascending: false }).limit(limit),
+                supabase.from('categories').select('id, name, created_at').order('created_at', { ascending: false }).limit(limit),
+            ]);
+
+            const events = [];
+            (noms || []).forEach(n => events.push({ time: n.created_at, activity: `New Nomination: ${n.nominee_name}`, user: 'Public Portal', status: 'Received' }));
+            (vts || []).forEach(v => events.push({ time: v.created_at, activity: `Vote cast for nomination ${v.nomination_id}`, user: v.voter_email || 'anonymous', status: 'Voted' }));
+            (cats || []).forEach(c => events.push({ time: c.created_at, activity: `Category Added: ${c.name}`, user: 'Admin', status: 'Created' }));
+
+            events.sort((a, b) => new Date(b.time) - new Date(a.time));
+
             const tbody = document.getElementById('logs-table-body');
             if (!tbody) return;
             tbody.innerHTML = '';
-            events.forEach(ev => {
+            events.slice(0, limit).forEach(ev => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="padding: 12px;">${new Date(ev.time).toLocaleString()}</td>
@@ -480,14 +502,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // load categories list and populate categories view
     async function loadCategories() {
         try {
-            const resp = await fetch('/api/categories');
-            const json = await resp.json();
-            if (!json.success) return;
-            const cats = json.data || [];
+            const { data: cats, error } = await supabase.from('categories').select('*');
+            if (error) throw error;
             const tbody = document.getElementById('category-table-body');
             if (tbody) {
                 tbody.innerHTML = '';
-                cats.forEach(cat => {
+                (cats || []).forEach(cat => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${cat.name}</td>
@@ -512,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // update stat cards in categories view
             const activeCard = document.querySelector('.stat-info h2');
             const hiddenCard = document.querySelectorAll('.stat-info h2')[1];
-            if (activeCard) activeCard.textContent = cats.length;
+            if (activeCard) activeCard.textContent = (cats || []).length || '--';
             if (hiddenCard) hiddenCard.textContent = '0';
         } catch (err) {
             console.error('failed to load categories', err);
@@ -522,31 +542,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     // fetch and display nominations list in nominations view
     async function loadNominations() {
         try {
-            const resp = await fetch('/api/nominations');
-            const json = await resp.json();
-            if (json.success) {
-                const nominations = json.data;
-                const tbody = document.querySelector('#content-area tbody');
-                if (!tbody) return;
-                tbody.innerHTML = ''; // clear existing
-                // keep a map for quick lookup when opening modal
-                window.__NOMINATIONS_MAP__ = {};
-                nominations.forEach(nom => {
-                    window.__NOMINATIONS_MAP__[nom.id] = nom;
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">${new Date(nom.created_at).toLocaleString()}</td>
-                        <td data-email="${nom.nominee_email || ''}" style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${nom.nominee_name}</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">${nom.category || ''}</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><span class="status-badge ${nom.status || 'pending'}">${nom.status || 'Pending'}</span></td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <label class="switch-ui"><input type="checkbox" ${nom.public ? 'checked' : ''}><span class="slider"></span></label>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><button class="view-btn review-trigger" data-id="${nom.id}">Review</button></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
+            const { data: nominations, error } = await supabase.from('nominations').select('*').order('created_at', { ascending: false }).limit(100);
+            if (error) throw error;
+            const tbody = document.querySelector('#content-area tbody');
+            if (!tbody) return;
+            tbody.innerHTML = ''; // clear existing
+            // keep a map for quick lookup when opening modal
+            window.__NOMINATIONS_MAP__ = {};
+            (nominations || []).forEach(nom => {
+                window.__NOMINATIONS_MAP__[nom.id] = nom;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">${new Date(nom.created_at).toLocaleString()}</td>
+                    <td data-email="${nom.nominee_email || ''}" style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${nom.nominee_name}</td>
+                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">${nom.category || ''}</td>
+                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><span class="status-badge ${nom.status || 'pending'}">${nom.status || 'Pending'}</span></td>
+                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+                        <label class="switch-ui"><input type="checkbox" ${nom.public ? 'checked' : ''}><span class="slider"></span></label>
+                    </td>
+                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><button class="view-btn review-trigger" data-id="${nom.id}">Review</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
         } catch (err) {
             console.error('error loading nominations', err);
                 }
@@ -558,9 +575,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // use the nominations map if present, otherwise fetch fresh
                         let items = Object.values(window.__NOMINATIONS_MAP__ || {});
                         if (!items.length) {
-                            const r = await fetch('/api/nominations');
-                            const j = await r.json();
-                            items = j.success ? j.data : [];
+                            const { data: fresh, error } = await supabase.from('nominations').select('*').order('created_at', { ascending: false }).limit(100);
+                            items = error ? [] : (fresh || []);
                         }
                         if (!items.length) return alert('No nominations to export');
                         const csvRows = [];
@@ -598,20 +614,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!id) return alert('Nomination id missing');
             if (!confirm('Approve this nomination and mark as Verified?')) return;
             // call server to update status
-            fetch(`/api/nominations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'verified' }) })
-                .then(r => r.json())
-                .then(j => {
-                    if (j.success) {
-                        alert('Nomination marked Verified');
-                        modal.style.display = 'none';
-                        // refresh list and overview
-                        loadNominations();
-                        loadOverview();
-                    } else {
-                        alert('Failed to update nomination');
-                        console.error(j);
-                    }
-                }).catch(err => { console.error(err); alert('Network error'); });
+            try {
+                const { data, error } = await supabase.from('nominations').update({ status: 'verified' }).eq('id', id).select();
+                if (error) throw error;
+                alert('Nomination marked Verified');
+                modal.style.display = 'none';
+                await loadNominations();
+                await loadOverview();
+            } catch (err) {
+                console.error(err);
+                alert('Failed to update nomination. Check RLS and anon key permissions.');
+            }
             return;
         }
         // Nomination flagging Workflow
@@ -685,20 +698,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             try {
                 if (editId) {
-                    // update existing category
-                    const resp = await fetch(`/api/categories/${editId}`, {
-                        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-                    });
-                    const j = await resp.json();
-                    if (!j.success) throw new Error(j.error || 'failed');
+                    // update existing category via Supabase
+                    const { data, error } = await supabase.from('categories').update(payload).eq('id', editId).select();
+                    if (error) throw error;
                     alert(`Success: '${newName}' updated.`);
                 } else {
-                    // create new category
-                    const resp = await fetch('/api/categories', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-                    });
-                    const j = await resp.json();
-                    if (!j.success) throw new Error(j.error || 'failed');
+                    // create new category via Supabase
+                    const { data, error } = await supabase.from('categories').insert([payload]).select();
+                    if (error) throw error;
                     alert(`Success: '${newName}' created.`);
                 }
                 document.getElementById('detailsModal').style.display = 'none';
@@ -716,9 +723,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!id) return alert('Category id missing');
             if (!confirm('Delete this category? This action cannot be undone.')) return;
             try {
-                const resp = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-                const j = await resp.json();
-                if (!j.success) throw new Error(j.error || 'failed');
+                const { data, error } = await supabase.from('categories').delete().eq('id', id).select();
+                if (error) throw error;
                 alert('Category deleted');
                 await loadCategories();
             } catch (err) {
