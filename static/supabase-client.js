@@ -1,11 +1,10 @@
-// Supabase client for browser (uses window.SUPABASE_URL and window.SUPABASE_ANON_KEY)
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-const SUPABASE_URL = window.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = window.SUPABASE_URL;
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('Supabase config missing. Add static/config.js that sets window.SUPABASE_URL and window.SUPABASE_ANON_KEY');
+  throw new Error("Supabase config missing. Set environment variables in Vercel.");
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
