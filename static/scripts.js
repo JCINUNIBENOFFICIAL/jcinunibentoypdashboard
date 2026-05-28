@@ -65,7 +65,6 @@ const loadHTMLTemplate = async (templateView) => {
     }
 
     const filePath = templateView.filePath;
-    console.log(filePath)
     const resp = await fetch(filePath, { cache: 'no-cache' }); // Pls change cache to 'default', this allows good testing
     if (!resp.ok) {
         throw new Error(`Couldn\'nt fetch ${filePath}`);
