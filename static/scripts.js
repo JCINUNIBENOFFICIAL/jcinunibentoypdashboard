@@ -542,7 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // fetch and display nominations list in nominations view
     async function loadNominations() {
         try {
-            const { data: nominations, error } = await supabase.from('nominations').select('*').order('created_at', { ascending: false }).limit(100);
+            const { data: nominations, error } = await supabase.from('nominations').select('*').order('created_at', { ascending: false });
             if (error) throw error;
             const tbody = document.querySelector('#content-area tbody');
             if (!tbody) return;
