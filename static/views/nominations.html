@@ -1,6 +1,5 @@
-<!-- Nomination Management view - review, filter, and verify submitted nominations -->
 <template>
-    <div class="view-header">
+        <div class="view-header">
             <h1>Nomination Management</h1>
             <div class="header-actions">
                 <button id="export-nominations-btn" class="btn-primary" style="font-size: 12px;"><i class='bx bx-export'></i> Export List</button>
@@ -11,10 +10,18 @@
             <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                 <div style="flex: 1; min-width: 200px;">
                     <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 5px;">FILTER BY CATEGORY</label>
-                    <select class="filter-select" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid var(--bg-slate); background: white;">
+                    <select id="category-filter" class="filter-select" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid var(--bg-slate); background: white;">
                         <option value="all">All Categories</option>
-                        <option value="academic">Academic Excellence</option>
-                        <option value="leadership">Leadership Development</option>
+                        <option value="Business and Entrepreneurial Excellence">Business and Entrepreneurial Excellence</option>
+                        <option value="Leadership in Student Governance">Leadership in Student Governance</option>
+                        <option value="Academic and Intellectual Achievement">Academic and Intellectual Achievement</option>
+                        <option value="Art, Culture and Creative Expression">Art, Culture and Creative Expression</option>
+                        <option value="Sports and Athletic Excellence">Sports and Athletic Excellence</option>
+                        <option value="Volunteering and Human Service">Volunteering and Human Service</option>
+                        <option value="Health, Wellness and Advocacy">Health, Wellness and Advocacy</option>
+                        <option value="Digital Media and Influencer Impact">Digital Media and Influencer Impact</option>
+                        <option value="Tech and Innovative Leadership">Tech and Innovative Leadership</option>
+                        <option value="Personal Development and Self Improvement">Personal Development and Self Improvement</option>
                     </select>
                 </div>
                 <div style="flex: 1; min-width: 200px;">
@@ -26,7 +33,7 @@
                     </select>
                 </div>
                 <div style="display: flex; align-items: flex-end; height: 100%;">
-                    <button class="view-btn" style="padding: 9px 20px;">Apply Filters</button>
+                    <button id="apply-filters-btn" class="view-btn" style="padding: 9px 20px;">Apply Filters</button>
                 </div>
             </div>
         </div>
@@ -44,7 +51,7 @@
                             <th style="padding: 12px;">ACTION</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="nominations-tbody">
                         <tr><td colspan="6" style="padding:15px; color:var(--text-muted);">No nominations yet.</td></tr>
                     </tbody>
                 </table>
