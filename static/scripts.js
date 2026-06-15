@@ -590,6 +590,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // ... (Keep your exact export button logic right here, do not delete it) ...
         const exportBtn = document.getElementById('export-nominations-btn');
+        if (exportBtn) {
+                    exportBtn.onclick = async () => {
+                        // use the nominations map if present, otherwise fetch fresh
+                        let items = Object.values(window.__NOMINATIONS_MAP__ || {});
+                        if (!items.length) {
+                            const { data: fresh, error } = await supabase.from('nominations').select('*').order('created_at', { ascending: false }).limit(100);
+                            items = error ? [] : (fresh || []);
+                        }
+                        if (!items.length) return alert('No nominations to export');
+                        const csvRows = [];
+                        const headers = ['id','nominee_name','nominee_email','nominator_email','category','faculty','department','level','created_at'];
+                        csvRows.push(headers.join(','));
+                        items.forEach(it => {
+                            const row = headers.map(h => '"'+String(it[h]||'').replace(/"/g,'""')+'"').join(',');
+                            csvRows.push(row);
+                        });
+                        const csv = csvRows.join('\n');
+                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `nominations_export_${new Date().toISOString().slice(0,10)}.csv`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    };
+                }
         // ...
     }
 
