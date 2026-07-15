@@ -8,6 +8,10 @@
             <button class="view-btn" id="refresh-finalists">
                 <i class='bx bx-refresh'></i> Refresh
             </button>
+            <button class="btn-primary" id="finalize-notify-btn" disabled
+                    title="All categories must have at least one finalist before finalizing.">
+                <i class='bx bx-lock-alt'></i> Finalize & Notify
+            </button>
         </div>
     </div>
 
@@ -40,6 +44,23 @@
                     <tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">Loading finalists…</td></tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- WhatsApp Panel (hidden by default) -->
+    <div class="card" id="whatsapp-panel" style="display: none; margin-top: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3>Send WhatsApp Notifications</h3>
+            <button class="view-btn" id="close-whatsapp-panel"><i class='bx bx-x'></i> Close</button>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Personalized Message Template</label>
+            <textarea id="whatsapp-message-template" rows="3" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit;">
+Hello {name}, congratulations! You have been selected as a finalist for the TOYP 2026 Awards. Please check your email for further instructions.</textarea>
+            <small style="color: var(--text-muted);">Use <code>{name}</code> as placeholder for the nominee's name.</small>
+        </div>
+        <div id="whatsapp-list-container" style="max-height: 400px; overflow-y: auto;">
+            <!-- List of finalists with send buttons will be inserted here -->
         </div>
     </div>
 </template>

@@ -1,47 +1,100 @@
 <template>
     <div class="view-header">
         <div>
-            <h1>Nominee & Finalist Management</h1>
-            <p>Manage nominees and advance finalists per category.</p>
+            <h1>Category Management</h1>
+            <p>Create, organize and manage all TOYP award categories.</p>
         </div>
         <div class="header-actions">
-            <button class="view-btn" id="refresh-finalists">
+            <button class="view-btn" id="refresh-categories">
                 <i class='bx bx-refresh'></i> Refresh
+            </button>
+            <button class="btn-primary" id="add-cat-trigger">
+                <i class='bx bx-plus-circle'></i> New Category
             </button>
         </div>
     </div>
 
-    <!-- Category Cards -->
-    <div class="card" style="margin-bottom: 24px;">
-        <h3 style="margin-bottom: 16px;">Categories</h3>
-        <div id="category-cards-container" class="category-cards-grid">
-            <!-- dynamically filled -->
+    <!-- Stats cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Categories</span>
+                <h2 id="total-categories">0</h2>
+            </div>
+            <i class='bx bxs-category'></i>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Visible</span>
+                <h2 id="visible-categories">0</h2>
+            </div>
+            <i class='bx bx-show'></i>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Hidden</span>
+                <h2 id="hidden-categories">0</h2>
+            </div>
+            <i class='bx bx-hide'></i>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Entries</span>
+                <h2 id="total-category-entries">0</h2>
+            </div>
+            <i class='bx bxs-user-detail'></i>
         </div>
     </div>
 
-    <!-- Master Finalist Table -->
-    <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3>Current Finalists</h3>
-            <span id="finalist-count-badge" class="status-badge" style="background: var(--jci-blue); color: white;">0</span>
+    <!-- Search & filters -->
+    <div class="card" style="margin-bottom: 20px; padding: 15px;">
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1; min-width: 250px;">
+                <div class="search-box" style="width: 100%;">
+                    <i class='bx bx-search'></i>
+                    <input id="category-search" type="search" placeholder="Search categories...">
+                </div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+                <select id="category-status-filter" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid var(--border-color); background: white;">
+                    <option value="">All Status</option>
+                    <option value="visible">Visible</option>
+                    <option value="hidden">Hidden</option>
+                </select>
+            </div>
+            <div>
+                <button class="view-btn" id="clear-category-filters">Clear</button>
+            </div>
         </div>
+    </div>
+
+    <!-- Categories table -->
+    <div class="card">
         <div class="table-responsive">
-            <table style="width: 100%; border-collapse: collapse;">
+            <table class="admin-table" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--bg-slate);">
-                        <th style="padding: 12px;">NOMINEE</th>
-                        <th style="padding: 12px;">CATEGORY</th>
-                        <th style="padding: 12px;">VOTES</th>
-                        <th style="padding: 12px;">FLAGGED</th>
-                        <th style="padding: 12px;">ACTIONS</th>
+                        <th style="padding: 12px; width: 40%;">CATEGORY</th>
+                        <th style="padding: 12px; width: 30%;">DESCRIPTION</th>
+                        <th style="padding: 12px; width: 10%; text-align: center;">ENTRIES</th>
+                        <th style="padding: 12px; width: 10%; text-align: center;">VISIBILITY</th>
+                        <th style="padding: 12px; width: 10%; text-align: center;">ORDER</th>
+                        <th style="padding: 12px; width: 15%;">ACTIONS</th>
                     </tr>
                 </thead>
-                <tbody id="finalist-table-body">
-                    <tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">Loading finalists…</td></tr>
+                <tbody id="category-table-body">
+                    <tr>
+                        <td colspan="6" style="padding:15px; color:var(--text-muted); text-align:center;">
+                            <i class='bx bx-loader-alt bx-spin'></i> Loading categories...
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
+        <div class="empty-state hidden" id="category-empty-state">
+            <i class='bx bx-category'></i>
+            <h3>No categories found</h3>
+            <p>Click "New Category" to create your first TOYP category.</p>
+        </div>
     </div>
-
-    <!-- Workflow Modal (built dynamically) -->
 </template>

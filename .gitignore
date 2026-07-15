@@ -9,3 +9,9 @@ databaseCredentials.json
 
 static/config.js
 .vercel
+
+
+
+Resend API Key: re_hu4DjKwz_4NEhW8CxfNvzXppxCisD588M
+
+Resend Endpoint: https://xbrndlhzaluksjhdbnur.supabase.co/functions/v1/send-finalist-emails

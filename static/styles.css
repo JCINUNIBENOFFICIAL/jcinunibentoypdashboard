@@ -974,3 +974,29 @@ input:checked + .slider:before { transform: translateX(16px); }
     font-size: 12px;
     font-weight: 600;
 }
+
+#merge-logs {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.toast {
+    background: var(--white);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideIn 0.3s ease;
+}
+.toast-success { color: #059669; border-left: 4px solid #059669; }
+.toast-error { color: #b91c1c; border-left: 4px solid #ef4444; }
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
