@@ -1,48 +1,239 @@
-<!-- Dynamic template of the static dashboard.html -->
 <template>
-    <div class="view-header" id="dashboard">
-                <h1>Dashboard Overview</h1>
-                <p>Welcome back, Admin. Here is a summary of the TOYP 2026 activity.</p>
+
+    <div class="view-header">
+        <div>
+            <h1>Dashboard Overview</h1>
+            <p>Welcome back. Here's the current status of the TOYP 2026 Awards.</p>
+        </div>
+
+        <button class="btn-primary" id="refresh-dashboard">
+            <i class='bx bx-refresh'></i>
+            Refresh Data
+        </button>
+    </div>
+
+
+    <!-- SUMMARY -->
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Nominations</span>
+                <h2 id="stat-total-nominations">--</h2>
             </div>
 
-            <div class="stats-grid">
-                <div class="stat-card" data-view="nominations">
-                    <div class="stat-info"><span>Total Nominations</span><h2>--</h2></div>
-                    <i class='bx bxs-file-import' style="color: var(--jci-blue); font-size: 32px;"></i>
-                </div>
-                <div class="stat-card" data-view="nominations">
-                    <div class="stat-info"><span>Verified Entries</span><h2>--</h2></div>
-                    <i class='bx bxs-check-shield' style="color: var(--jci-teal); font-size: 32px;"></i>
-                </div>
-                <div class="stat-card" data-view="voting">
-                    <div class="stat-info"><span>Total Votes Cast</span><h2>--</h2></div>
-                    <i class='bx bxs-bolt-circle' style="color: var(--jci-yellow); font-size: 32px;"></i>
-                </div>
-                <div class="stat-card" data-view="nominations">
-                    <div class="stat-info"><span>Pending Review</span><h2 style="color: #ef4444;">--</h2></div>
-                    <i class='bx bxs-time-five' style="color: #ef4444; font-size: 32px;"></i>
-                </div>
+            <i class='bx bxs-user-detail'
+                style="font-size:34px;color:var(--jci-blue);"></i>
+        </div>
+
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Verified Nominees</span>
+                <h2 id="stat-verified">--</h2>
             </div>
 
-            <div class="card" style="margin-top: 25px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3>Recent Activity</h3>
-                    <button class="view-btn" style="font-size: 12px;">View All Logs</button>
-                </div>
-                <div class="table-responsive">
-                    <table style="width: 100%; text-align: left; border-collapse: collapse; min-width: 600px;">
-                        <thead>
-                            <tr style="font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--bg-slate);">
-                                <th style="padding: 12px;">TIME</th>
-                                <th style="padding: 12px;">ACTIVITY</th>
-                                <th style="padding: 12px;">USER</th>
-                                <th style="padding: 12px;">STATUS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="overview-logs-body">
-                            <tr><td colspan="4" style="padding:12px; color:var(--text-muted);">No activity yet.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+            <i class='bx bxs-check-shield'
+                style="font-size:34px;color:var(--jci-teal);"></i>
+        </div>
+
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Pending Review</span>
+                <h2 id="stat-pending">--</h2>
             </div>
+
+            <i class='bx bxs-time-five'
+                style="font-size:34px;color:#ef4444;"></i>
+        </div>
+
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Categories</span>
+                <h2 id="stat-categories">--</h2>
+            </div>
+
+            <i class='bx bxs-category'
+                style="font-size:34px;color:var(--jci-yellow);"></i>
+        </div>
+
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Votes</span>
+                <h2 id="stat-votes">--</h2>
+            </div>
+
+            <i class='bx bxs-bar-chart-alt-2'
+                style="font-size:34px;color:#0ea5e9;"></i>
+        </div>
+
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Voting Status</span>
+
+                <h2 id="stat-voting-status">
+                    Closed
+                </h2>
+            </div>
+
+            <i class='bx bxs-lock-open-alt'
+                style="font-size:34px;color:#22c55e;"></i>
+        </div>
+
+    </div>
+
+
+
+    <!-- QUICK ACTIONS -->
+
+    <div class="card" style="margin-top:30px;">
+
+        <h3 style="margin-bottom:20px;">
+            Quick Actions
+        </h3>
+
+        <div class="quick-actions-grid">
+
+            <button class="dashboard-action" data-view="nominations">
+                <i class='bx bxs-file-plus'></i>
+                <span>Review Nominations</span>
+            </button>
+
+            <button class="dashboard-action" data-view="categories">
+                <i class='bx bxs-category'></i>
+                <span>Manage Categories</span>
+            </button>
+
+            <button class="dashboard-action" data-view="finalists">
+                <i class='bx bxs-award'></i>
+                <span>Manage Finalists</span>
+            </button>
+
+            <button class="dashboard-action" data-view="voting">
+                <i class='bx bxs-check-shield'></i>
+                <span>Voting Control</span>
+            </button>
+
+            <button class="dashboard-action" data-view="audit">
+                <i class='bx bxs-report'></i>
+                <span>Audit Results</span>
+            </button>
+
+            <button class="dashboard-action" data-view="content">
+                <i class='bx bx-news'></i>
+                <span>Edit Website Content</span>
+            </button>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- SYSTEM STATUS -->
+
+    <div class="card" style="margin-top:25px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+
+            <h3>System Status</h3>
+
+            <span class="status-badge verified">
+                Live
+            </span>
+
+        </div>
+
+        <div class="system-status-grid">
+
+            <div>
+                <strong>Database</strong>
+                <p id="db-status">Connected</p>
+            </div>
+
+            <div>
+                <strong>Voting Portal</strong>
+                <p id="portal-status">Available</p>
+            </div>
+
+            <div>
+                <strong>Last Backup</strong>
+                <p id="backup-time">--</p>
+            </div>
+
+            <div>
+                <strong>Last Sync</strong>
+                <p id="last-sync">--</p>
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- RECENT ACTIVITY -->
+
+    <div class="card" style="margin-top:25px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+
+            <h3>Recent Activity</h3>
+
+            <button
+                class="view-btn"
+                data-view="logs">
+
+                View Full Logs
+
+            </button>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table style="width:100%;border-collapse:collapse;">
+
+                <thead>
+
+                    <tr>
+
+                        <th style="padding:12px;">TIME</th>
+
+                        <th style="padding:12px;">ACTIVITY</th>
+
+                        <th style="padding:12px;">USER</th>
+
+                        <th style="padding:12px;">STATUS</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="overview-logs-body">
+
+                    <tr>
+
+                        <td colspan="4"
+                            style="padding:20px;text-align:center;color:var(--text-muted);">
+
+                            No recent activity.
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
 </template>

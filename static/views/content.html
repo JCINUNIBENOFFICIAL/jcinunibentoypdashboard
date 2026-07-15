@@ -1,48 +1,281 @@
-<!-- Content & Announcements view - manage public portal landing page content and broadcast messages -->
+<!-- Content Management System -->
 <template>
-	<div class="view-header">
-		<h1>Content & Announcements</h1>
-		<button class="btn-primary" id="publish-all-btn">
-			<i class='bx bx-cloud-upload'></i> Publish Changes
-		</button>
-	</div>
 
-	<div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
-		<div class="card">
-			<h3 style="margin-bottom: 15px; font-size: 14px; color: var(--jci-blue);">Portal Landing Page Content</h3>
+    <div class="view-header">
 
-			<div style="display: flex; flex-direction: column; gap: 15px;">
-				<div>
-					<label class="modal-label">Hero Title</label>
-					<input type="text" value="JCI UNIBEN TOYP 2026" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px;">
-				</div>
-				<div>
-					<label class="modal-label">Welcome Message (About)</label>
-					<textarea rows="6" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px; font-family: inherit; font-size: 13px;">The Ten Outstanding Young Persons (TOYP) program serves to formally recognize young people who excel in their chosen fields...</textarea>
-				</div>
-			</div>
-		</div>
+        <div>
+            <h1>Content Management</h1>
+            <p>Manage the public TOYP portal without editing code.</p>
+        </div>
 
-		<div class="card" style="border-top: 4px solid var(--jci-teal);">
-			<h3 style="margin-bottom: 15px; font-size: 14px; color: var(--jci-teal);">Broadcast Announcement</h3>
-			<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">This will appear as a banner on the public nomination site.</p>
+        <div class="header-actions">
 
-			<div style="display: flex; flex-direction: column; gap: 12px;">
-				<input type="text" id="announcement-title" placeholder="Announcement Title (e.g. Deadline Extended)" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px;">
-				<textarea id="announcement-body" placeholder="Message body..." rows="3" style="width: 100%; padding: 10px; border: 1px solid var(--bg-slate); border-radius: 6px; font-family: inherit;"></textarea>
+            <button class="view-btn" id="preview-site">
+                <i class='bx bx-show'></i>
+                Preview Website
+            </button>
 
-				<button class="btn-primary" style="background: var(--jci-teal); border: none; width: 100%;" id="send-announcement">
-					<i class='bx bx-send'></i> Post Announcement
-				</button>
-			</div>
+            <button class="btn-primary" id="publish-all-btn">
+                <i class='bx bx-cloud-upload'></i>
+                Publish Changes
+            </button>
 
-			<div style="margin-top: 20px; border-top: 1px solid var(--bg-slate); padding-top: 15px;">
-				<label class="modal-label">Active Banners</label>
-				<div style="background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #dcfce7; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
-					<span style="font-size: 12px; color: #166534;">"Nomination deadline: Feb 28th"</span>
-					<i class='bx bx-x' style="cursor: pointer; color: #166534;"></i>
-				</div>
-			</div>
-		</div>
-	</div>
+        </div>
+
+    </div>
+
+    <!-- ================================= -->
+    <!-- Tabs -->
+    <!-- ================================= -->
+
+    <div class="card" style="margin-bottom:25px;">
+
+        <div class="tab-group">
+
+            <button class="tab-btn active"
+                data-tab="homepage">
+                Homepage
+            </button>
+
+            <button class="tab-btn"
+                data-tab="hero">
+                Hero Section
+            </button>
+
+            <button class="tab-btn"
+                data-tab="announcements">
+                Announcements
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- ================================= -->
+    <!-- Homepage -->
+    <!-- ================================= -->
+
+    <div class="cms-tab active" id="homepage-tab">
+
+        <div class="card">
+
+            <h3>Homepage Content</h3>
+
+            <div style="margin-top:25px;display:flex;flex-direction:column;gap:20px;">
+
+                <div>
+
+                    <label class="modal-label">
+
+                        Homepage Title
+
+                    </label>
+
+                    <input
+                        id="homepage-title"
+                        type="text"
+                        value="JCI UNIBEN TOYP 2026">
+
+                </div>
+
+                <div>
+
+                    <label class="modal-label">
+
+                        About TOYP
+
+                    </label>
+
+                    <textarea
+                        rows="8"
+                        id="homepage-about"></textarea>
+
+                </div>
+
+                <div>
+
+                    <label class="modal-label">
+
+                        Footer Text
+
+                    </label>
+
+                    <textarea
+                        rows="3"
+                        id="footer-text"></textarea>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================================= -->
+    <!-- Hero -->
+    <!-- ================================= -->
+
+    <div class="cms-tab" id="hero-tab">
+
+        <div class="card">
+
+            <h3>Hero Section</h3>
+
+            <div style="margin-top:25px;display:flex;flex-direction:column;gap:20px;">
+
+                <div>
+
+                    <label class="modal-label">
+
+                        Hero Heading
+
+                    </label>
+
+                    <input
+                        id="hero-title"
+                        type="text">
+
+                </div>
+
+                <div>
+
+                    <label class="modal-label">
+
+                        Hero Subtitle
+
+                    </label>
+
+                    <textarea
+                        rows="4"
+                        id="hero-subtitle"></textarea>
+
+                </div>
+
+                <div>
+
+                    <label class="modal-label">
+
+                        Primary Button Text
+
+                    </label>
+
+                    <input
+                        id="hero-button-text"
+                        type="text">
+
+                </div>
+
+                <div>
+
+                    <label class="modal-label">
+
+                        Hero Background Image
+
+                    </label>
+
+                    <input
+                        id="hero-image"
+                        type="file"
+                        accept="image/*">
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================================= -->
+    <!-- Announcements -->
+    <!-- ================================= -->
+
+    <div class="cms-tab" id="announcements-tab">
+
+        <div class="card">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+
+                <h3>Announcements</h3>
+
+                <button class="btn-primary"
+                    id="create-announcement">
+
+                    <i class='bx bx-plus'></i>
+
+                    New Announcement
+
+                </button>
+
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:15px;">
+
+                <input
+                    id="announcement-title"
+                    type="text"
+                    placeholder="Announcement Title">
+
+                <textarea
+                    rows="4"
+                    id="announcement-body"
+                    placeholder="Announcement body"></textarea>
+
+                <select id="announcement-status">
+
+                    <option value="published">
+                        Publish Immediately
+                    </option>
+
+                    <option value="draft">
+                        Save as Draft
+                    </option>
+
+                </select>
+
+                <button
+                    class="btn-primary"
+                    id="save-announcement">
+
+                    <i class='bx bx-send'></i>
+
+                    Publish Announcement
+
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="card" style="margin-top:25px;">
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+
+                <h3>Published Announcements</h3>
+
+                <span id="announcement-count">
+
+                    0 Announcements
+
+                </span>
+
+            </div>
+
+            <div id="announcement-list">
+
+                <div class="empty-state">
+
+                    <i class='bx bx-news'></i>
+
+                    <p>No announcements published.</p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </template>

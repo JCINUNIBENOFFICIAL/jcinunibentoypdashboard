@@ -1,0 +1,202 @@
+<!-- Official Results Dashboard -->
+<template>
+
+    <div class="view-header">
+
+        <div>
+            <h1>Official Results</h1>
+            <p>Review category rankings, winners and certified voting results.</p>
+        </div>
+
+        <div class="header-actions">
+
+            <button class="view-btn" id="refresh-results">
+                <i class='bx bx-refresh'></i>
+                Refresh
+            </button>
+
+            <button class="btn-primary" id="export-results">
+                <i class='bx bxs-file-pdf'></i>
+                Export PDF
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Statistics -->
+    <!-- ========================= -->
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Categories</span>
+                <h2 id="total-categories">0</h2>
+            </div>
+
+            <i class='bx bx-category'></i>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Honourees</span>
+                <h2 id="total-honourees">0</h2>
+            </div>
+
+            <i class='bx bxs-medal'></i>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Finalists</span>
+                <h2 id="total-finalists">0</h2>
+            </div>
+
+            <i class='bx bxs-award'></i>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Votes</span>
+                <h2 id="results-total-votes">0</h2>
+            </div>
+
+            <i class='bx bx-bar-chart'></i>
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Filters -->
+    <!-- ========================= -->
+
+    <div class="card" style="margin-top:25px;">
+
+        <div style="display:flex;gap:15px;flex-wrap:wrap;">
+
+            <input
+                type="text"
+                id="results-search"
+                placeholder="Search nominee..."
+                class="search-input"
+            >
+
+            <select id="results-category-filter">
+
+                <option value="">All Categories</option>
+
+            </select>
+
+            <select id="results-status-filter">
+
+                <option value="">All Positions</option>
+
+                <option>Honouree</option>
+
+                <option>Finalist</option>
+
+                <option>Shortlisted</option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Results -->
+    <!-- ========================= -->
+
+    <div class="card" style="margin-top:25px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+
+            <h3>Category Rankings</h3>
+
+            <span id="results-count">
+                0 Results
+            </span>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table style="width:100%;border-collapse:collapse;">
+
+                <thead>
+
+                    <tr>
+
+                        <th width="70">Rank</th>
+
+                        <th>Nominee</th>
+
+                        <th>Category</th>
+
+                        <th>Votes</th>
+
+                        <th>Percentage</th>
+
+                        <th>Status</th>
+
+                        <th width="160">Actions</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="results-table-body">
+
+                    <tr>
+
+                        <td colspan="7" style="padding:30px;text-align:center;color:var(--text-muted);">
+
+                            Loading official results...
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Winner Preview -->
+    <!-- ========================= -->
+
+    <div class="card" style="margin-top:30px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+
+            <h3>Category Winners</h3>
+
+            <button class="view-btn" id="publish-results">
+
+                <i class='bx bx-world'></i>
+
+                Publish Results
+
+            </button>
+
+        </div>
+
+        <div id="winner-grid"
+
+            style="display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+            gap:20px;">
+
+            <!-- Generated from Supabase -->
+
+        </div>
+
+    </div>
+
+</template>

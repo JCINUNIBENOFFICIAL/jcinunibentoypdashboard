@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login | JCI UNIBEN TOYP 2026</title>
+    <title>Admin Login | JCIN UNIBEN UNIBEN TOYP 2026</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -16,7 +16,7 @@
 
     <div class="login-card">
         <div class="auth-header">
-            <img src="https://toyp.jcinuniben.com/images/toyp.png" alt="JCI TOYP Logo" class="auth-logo" style="max-width: 140px; margin-bottom: 20px;">
+            <img src="./img/toyp.png" alt="JCIN UNIBEN TOYP Logo" class="auth-logo" style="max-width: 140px; margin-bottom: 20px;">
             <h1 style="font-weight: 700; color: var(--jci-black);">Admin Portal</h1>
             <p style="color: var(--text-muted); font-size: 14px; margin-top: 5px;">Ten Outstanding Young Persons of UNIBEN</p>
         </div>
@@ -60,7 +60,7 @@
         </form>
 
         <div class="auth-footer" style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
-            <p style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">© 2026 JCI UNIBEN TOYP</p>
+            <p style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">© 2026 JCIN UNIBEN TOYP</p>
             <small style="color: #cbd5e1; font-weight: 500;">AUTHORIZED ACCESS ONLY</small>
         </div>
     </div>
@@ -90,52 +90,63 @@
     </div>
 
     <script>
-        // Simple Login Simulation for Frontend UI Testing
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            // UI Elements
-            const btn = document.getElementById('signInBtn');
-            const btnText = document.getElementById('btnText');
-            const btnIcon = document.getElementById('btnIcon');
-            const loader = document.getElementById('btnLoader');
-            const errorBox = document.getElementById('loginError');
+  window.SUPABASE_URL = "https://xbrndlhzaluksjhdbnur.supabase.co";
+  window.SUPABASE_ANON_KEY = "sb_publishable_0kunmksX8TRkAMaVZeEcRg_BVe2B9Yv";
+</script>
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-            // 1. Enter Loading State
-            errorBox.style.display = 'none';
-            btn.disabled = true;
-            btnText.innerText = "Authenticating...";
-            btnIcon.style.display = 'none';
-            loader.style.display = 'block';
+  const supabase = createClient(
+    window.SUPABASE_URL,
+    window.SUPABASE_ANON_KEY
+  );
 
-            // 2. Simulate Server Delay (1.5 seconds)
-            setTimeout(() => {
-                // Validation Logic
-                 if (email === "admin@jcinuniben.org" && password === "admin123") {
-                    localStorage.setItem('activeUserRole', 'admin');
-                    window.location.href = 'dashboard.html?role=admin';
-                } 
-                else if (email === "auditor@jcinuniben.org" && password === "audit123") {
-                    localStorage.setItem('activeUserRole', 'auditor');
-                    window.location.href = 'dashboard.html?role=auditor';
-                } 
-                else {
-                    // 3. Handle Failure
-                    btn.disabled = false;
-                    btnText.innerText = "Sign In";
-                    btnIcon.style.display = 'block';
-                    loader.style.display = 'none';
+  // If already logged in, go to dashboard as admin
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    localStorage.setItem('activeUserRole', 'admin');
+    window.location.href = 'dashboard.html';
+  }
 
-                    errorBox.style.display = 'flex';
-                    errorBox.classList.add('shake');
-                    setTimeout(() => errorBox.classList.remove('shake'), 500);
-                }
-            }, 1500);
-        });
-    </script>
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    const btn = document.getElementById('signInBtn');
+    const btnText = document.getElementById('btnText');
+    const btnIcon = document.getElementById('btnIcon');
+    const loader = document.getElementById('btnLoader');
+    const errorBox = document.getElementById('loginError');
+
+    errorBox.style.display = 'none';
+    btn.disabled = true;
+    btnText.innerText = "Authenticating...";
+    btnIcon.style.display = 'none';
+    loader.style.display = 'block';
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      btn.disabled = false;
+      btnText.innerText = "Sign In";
+      btnIcon.style.display = 'block';
+      loader.style.display = 'none';
+      document.getElementById('errorText').innerText = error.message;
+      errorBox.style.display = 'flex';
+      errorBox.classList.add('shake');
+      setTimeout(() => errorBox.classList.remove('shake'), 500);
+      return;
+    }
+
+    // All logged in users are admins
+    localStorage.setItem('activeUserRole', 'admin');
+    window.location.href = 'dashboard.html';
+  });
+</script>
 </body>
 </html>

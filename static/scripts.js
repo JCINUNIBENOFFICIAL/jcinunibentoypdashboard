@@ -5,10 +5,11 @@
 
 
 // 1. SYSTEM STATE & SECURITY (Requirement 2)
+// At the very beginning (after imports)
 const currentUser = {
-    name: "Admin User",
-    role: "super-admin", // Toggle to 'auditor' to test Read-Only mode
-    isAuthenticated: true
+  name: "Admin User",
+    role: localStorage.getItem('activeUserRole') || 'super-admin',
+  isAuthenticated: true
 };
 
 
@@ -108,52 +109,8 @@ const getViewMarkup = async (viewKey) => {
 function applySecurityRoles() {
     const badge = document.querySelector('.role-badge');
     if (badge) {
-        badge.textContent = currentUser.role === 'super-admin' ? 'Super Admin' : 'Auditor';
-        badge.className = `role-badge ${currentUser.role}`;
-    }
-
-    // Auditor Restricted Access 
-    if (currentUser.role === 'auditor') {
-        const controls = document.querySelectorAll('.btn-primary, .btn-reject, #btn-approve, .switch-ui input, #add-cat-btn');
-        controls.forEach(el => {
-            if (el.tagName === 'INPUT') {
-                el.disabled = true;
-                el.parentElement.style.opacity = "0.5";
-            } else {
-                el.style.display = 'none';
-            }
-        });
-
-        if (!document.querySelector('.audit-banner')) {
-            const banner = document.createElement('div');
-            banner.className = 'audit-banner';
-            banner.style.cssText = "background: #FEF9C3; color: #854D0E; padding: 10px; font-size: 12px; text-align: center; border-bottom: 1px solid #FDE047;";
-            banner.innerHTML = `<i class='bx bx-lock-alt'></i> <b>Audit Mode:</b> You have read-only access to all TOYP data.`;
-            document.querySelector('.main-content').prepend(banner);
-        }
-        // Disable Visibility Toggles
-        const toggles = document.querySelectorAll('.visibility-toggle');
-        toggles.forEach(toggle => {
-            toggle.disabled = true; // Prevents clicking
-            toggle.parentElement.style.opacity = "0.6"; // Visual cue it's locked
-            toggle.parentElement.style.cursor = "not-allowed";
-        });
-
-        // Hide "Toggle All" Bulk Action
-        const bulkToggle = document.getElementById('toggle-all-visibility');
-        if (bulkToggle) bulkToggle.style.display = 'none';
-
-        // Content Panel Specific Restrictions
-        const inputs = document.querySelectorAll('.card input, .card textarea');
-        inputs.forEach(input => {
-            input.disabled = true;
-            input.style.backgroundColor = "#f8fafc";
-        });
-
-        const sendBtn = document.getElementById('send-announcement');
-        const publishBtn = document.getElementById('publish-all-btn');
-        if (sendBtn) sendBtn.style.display = 'none';
-        if (publishBtn) publishBtn.style.display = 'none';
+        badge.textContent = 'Super Admin';
+        badge.className = 'role-badge super-admin';
     }
 }
 
@@ -165,69 +122,75 @@ function applySecurityRoles() {
 function openNominationModal(nomination = null) {
     const modal = document.getElementById('detailsModal');
     const modalBody = document.getElementById('modal-data');
+
     if (!nomination) {
         modalBody.innerHTML = '<div style="padding:20px">No nomination data available.</div>';
         modal.style.display = 'flex';
         return;
     }
 
-    // count how many times this nominee appears (same email)
-    const nomineeEmail = nomination.nominee_email;
-    // we can compute occurrences from the currently loaded table if available
-    const rows = document.querySelectorAll('#content-area tbody tr');
-    let occurrences = 1;
-    if (rows.length) {
-        occurrences = Array.from(rows).reduce((acc, r) => {
-            const emailCell = r.querySelector('td[data-email]');
-            if (!emailCell) return acc;
-            return acc + (emailCell.dataset.email === nomineeEmail ? 1 : 0);
-        }, 0);
-    }
+    // Set modal title dynamically
+    document.getElementById('modal-title').textContent = nomination.nominee_name;
+    document.getElementById('modal-subtitle').textContent = nomination.category || 'Category not specified';
 
     modalBody.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--bg-slate);">
-                    <div>
-                        <h3 style="color: var(--jci-blue); font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Nominee Profile</h3>
-                        <p style="font-weight: 700; font-size: 15px;">${nomination.nominee_name}</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">${nomination.nominee_email}</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">${nomination.whatsapp_contact || ''}</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">Nominated ${occurrences} time(s)</p>
-                    </div>
-                    <div>
-                        <h3 style="color: var(--jci-teal); font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Nominator Details</h3>
-                        <p style="font-weight: 700; font-size: 15px;">${nomination.nominator_email}</p>
-                        <p style="font-size: 13px; color: var(--text-muted);">${nomination.faculty || ''} — ${nomination.department || ''}</p>
-                    </div>
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Profile header -->
+            <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--jci-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700;">
+                    ${nomination.nominee_name.charAt(0).toUpperCase()}
                 </div>
-
                 <div>
-                    <h3 style="font-size: 12px; margin-bottom: 10px; text-transform: uppercase; color: var(--text-muted);">Nominee Achievement Write-up</h3>
-                    <div style="background: var(--bg-slate); padding: 15px; border-radius: 8px; font-size: 14px; line-height: 1.6; color: var(--text-main);">
-                        ${nomination.reason || ''}
-                    </div>
-                </div>
-
-                <div>
-                    <h3 style="font-size: 12px; margin-bottom: 10px; text-transform: uppercase; color: var(--text-muted);">Category</h3>
-                    <div style="padding:8px 12px; border-radius:6px; background:var(--bg-slate);">${nomination.category || ''}</div>
-                </div>
-
-                <div class="modal-footer" style="margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--bg-slate); display: flex; gap: 10px; justify-content: flex-end;">
-                    <button class="btn-primary flag-trigger" style="background: var(--jci-yellow); color: var(--jci-black); border: 1px solid var(--border-color);">
-                        <i class='bx bxs-flag-alt'></i> Flag
-                    </button>
-                    <button class="btn-primary reject-trigger" style="background: #ef4444; color: white; border: 1px solid var(--border-color);">
-                        <i class='bx bx-x'></i> Reject
-                    </button>
-                    <button class="btn-primary approve-trigger" data-id="${nomination.id}" style="background: var(--jci-teal);">
-                        <i class='bx bx-check'></i> Approve Nomination
-                    </button>
+                    <h3 style="margin: 0; font-size: 18px; color: var(--jci-black);">${nomination.nominee_name}</h3>
+                    <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">${nomination.nominee_email}</p>
                 </div>
             </div>
-        `;
-    modal.style.display = 'flex';
 
+            <!-- Detail grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Category</span>
+                    <p style="font-weight: 600; margin: 4px 0 0;">${nomination.category || '—'}</p>
+                </div>
+                <div>
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Status</span>
+                    <p style="font-weight: 600; margin: 4px 0 0;">
+                        <span class="status-badge ${nomination.status || 'pending'}">${nomination.status || 'Pending'}</span>
+                    </p>
+                </div>
+                <div>
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Nominator</span>
+                    <p style="font-weight: 600; margin: 4px 0 0;">${nomination.nominator_email || '—'}</p>
+                    <p style="font-size: 13px; color: var(--text-muted);">${nomination.faculty || ''} ${nomination.department ? '— ' + nomination.department : ''}</p>
+                </div>
+                <div>
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Date Submitted</span>
+                    <p style="font-weight: 600; margin: 4px 0 0;">${new Date(nomination.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+            </div>
+
+            <!-- Achievement write-up -->
+            <div>
+                <h4 style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px;">Achievement Write-up</h4>
+                <div style="background: var(--bg-slate); padding: 16px; border-radius: 10px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
+                    ${nomination.reason || 'No write-up provided.'}
+                </div>
+            </div>
+
+            <!-- Contact (if available) -->
+            ${nomination.whatsapp_contact ? `
+            <div>
+                <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">WhatsApp Contact</span>
+                <p style="font-weight: 600; margin: 4px 0 0;">${nomination.whatsapp_contact}</p>
+            </div>` : ''}
+
+            <div style="margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+                <button class="btn-secondary close-modal">Close</button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
     applySecurityRoles();
 }
 
@@ -313,6 +276,10 @@ function openDossierModal() {
 
 // 4. CORE CONTROLLER
 document.addEventListener('DOMContentLoaded', async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+if (!user) {
+  window.location.href = 'index.html';
+}
     const contentArea = document.getElementById('content-area');
     const navItems = document.querySelectorAll('.nav-item');
     const modal = document.getElementById('detailsModal');
@@ -404,6 +371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (viewKey === 'overview') await loadOverview();
                 if (viewKey === 'nominations') await loadNominations();
                 if (viewKey === 'categories') await loadCategories();
+                if (viewKey === 'finalists') await loadFinalists();
             }
         });
     });
@@ -425,45 +393,124 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // helper to load overview data
-    async function loadOverview() {
-        const template = await getViewMarkup('overview');
-        contentArea.innerHTML = template;
-        applySecurityRoles();
-            // fetch counts directly from Supabase
-            try {
-                const [{ count: nominations }, { count: votes }, { count: categories }] = await Promise.all([
-                    supabase.from('nominations').select('id', { count: 'exact', head: true }),
-                    supabase.from('votes').select('id', { count: 'exact', head: true }),
-                    supabase.from('categories').select('id', { count: 'exact', head: true }),
-                ]);
+async function loadOverview() {
+    const template = await getViewMarkup('overview');
+    contentArea.innerHTML = template;
 
-                // try verified count
-                let verified = 0;
-                try {
-                    const { count: verifiedCount } = await supabase.from('nominations').select('id', { count: 'exact', head: true }).eq('status', 'verified');
-                    verified = verifiedCount || 0;
-                } catch (e) { /* ignore */ }
-
-                const pending = (nominations || 0) - verified;
-                const cards = document.querySelectorAll('.stats-grid .stat-card h2');
-                if (cards[0]) cards[0].textContent = nominations || '--';
-                if (cards[1]) cards[1].textContent = verified || '--';
-                if (cards[2]) cards[2].textContent = votes || '--';
-                if (cards[3]) cards[3].textContent = typeof pending === 'number' ? pending : '--';
-            } catch (err) {
-                console.error('failed to fetch counts', err);
-            }
-        // wire "View All Logs" button to open logs view
-        const viewLogsBtn = document.querySelector('.view-btn');
-        if (viewLogsBtn && viewLogsBtn.textContent.includes('View All Logs')) {
-            viewLogsBtn.addEventListener('click', async () => {
-                const viewMarkup = await getViewMarkup('logs');
-                contentArea.innerHTML = viewMarkup;
-                applySecurityRoles();
-                await loadLogs();
-            });
-        }
+    // Attach event listeners only after DOM is updated
+    const viewLogsBtn = document.querySelector('.view-btn');
+    if (viewLogsBtn && viewLogsBtn.textContent.includes('View All Logs')) {
+        viewLogsBtn.addEventListener('click', async () => {
+            const viewMarkup = await getViewMarkup('logs');
+            contentArea.innerHTML = viewMarkup;
+            applySecurityRoles();
+            await loadLogs();
+        });
     }
+
+    applySecurityRoles();
+
+    // Refresh button (if exists)
+    const refreshBtn = document.getElementById('refresh-dashboard');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadOverview);
+    }
+
+    // --- Fetch Supabase data ---
+    try {
+        const [
+            { count: nominations },
+            { count: votes },
+            { count: categories }
+        ] = await Promise.all([
+            supabase.from('nominations').select('id', { count: 'exact', head: true }),
+            supabase.from('votes').select('id', { count: 'exact', head: true }),
+            supabase.from('categories').select('id', { count: 'exact', head: true }),
+        ]);
+
+        let verified = 0;
+        try {
+            const { count: verifiedCount } = await supabase
+                .from('nominations')
+                .select('id', { count: 'exact', head: true })
+                .eq('status', 'verified');
+            verified = verifiedCount || 0;
+        } catch (_) { /* ignore */ }
+
+        const pending = (nominations || 0) - verified;
+
+        // Update stats (only if elements exist)
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+
+        setText('stat-total-nominations', nominations || '--');
+        setText('stat-verified', verified || '--');
+        setText('stat-pending', pending >= 0 ? pending : '--');
+        setText('stat-categories', categories || '--');
+        setText('stat-votes', votes || '--');
+        setText('stat-voting-status', 'Closed'); // or fetch real status
+
+    } catch (err) {
+        console.error('Failed to fetch overview counts', err);
+        document.querySelectorAll('.stats-grid h2').forEach(h2 => h2.textContent = '--');
+    }
+
+    // System status placeholders
+    const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+    setText('db-status', 'Connected');
+    setText('portal-status', 'Available');
+    setText('backup-time', new Date().toLocaleString());
+    setText('last-sync', new Date().toLocaleString());
+
+    // Recent activity
+    loadRecentActivityForOverview();
+}
+async function loadRecentActivityForOverview() {
+    const tbody = document.getElementById('overview-logs-body');
+    if (!tbody) return;
+
+    try {
+        const limit = 5;
+        const [{ data: noms }, { data: vts }, { data: cats }] = await Promise.all([
+            supabase.from('nominations').select('id, nominee_name, nominator_email, created_at, category').order('created_at', { ascending: false }).limit(limit),
+            supabase.from('votes').select('id, nomination_id, voter_email, created_at').order('created_at', { ascending: false }).limit(limit),
+            supabase.from('categories').select('id, name, created_at').order('created_at', { ascending: false }).limit(limit),
+        ]);
+
+        const events = [];
+        (noms || []).forEach(n => events.push({ time: n.created_at, activity: `New Nomination: ${n.nominee_name}`, user: 'Public Portal', status: 'Received' }));
+        (vts || []).forEach(v => events.push({ time: v.created_at, activity: `Vote cast for nomination ${v.nomination_id}`, user: v.voter_email || 'anonymous', status: 'Voted' }));
+        (cats || []).forEach(c => events.push({ time: c.created_at, activity: `Category Added: ${c.name}`, user: 'Admin', status: 'Created' }));
+
+        events.sort((a, b) => new Date(b.time) - new Date(a.time));
+        const recent = events.slice(0, limit);
+
+        tbody.innerHTML = '';
+        if (recent.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted);">No recent activity.</td></tr>';
+            return;
+        }
+
+        recent.forEach(ev => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:12px;">${new Date(ev.time).toLocaleString()}</td>
+                <td style="padding:12px;">${ev.activity}</td>
+                <td style="padding:12px;">${ev.user}</td>
+                <td style="padding:12px;"><span class="status-badge">${ev.status}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Failed to load recent activity', err);
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted);">Could not load activity.</td></tr>';
+    }
+}
 
     async function loadLogs() {
         try {
@@ -500,291 +547,823 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // load categories list and populate categories view
+
+
     async function loadCategories() {
-        try {
-            const { data: cats, error } = await supabase.from('categories').select('*');
-            if (error) throw error;
-            const tbody = document.getElementById('category-table-body');
-            if (tbody) {
-                tbody.innerHTML = '';
-                (cats || []).forEach(cat => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${cat.name}</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px; color: var(--text-muted);">${cat.description || ''}</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
-                            <label class="switch-ui">
-                                <input type="checkbox" class="cat-toggle" data-id="${cat.id}" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">-</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <div style="display: flex; gap: 8px;">
-                                <button class="view-btn edit-cat-trigger" data-id="${cat.id}" data-name="${cat.name}" data-desc="${cat.description || ''}"><i class='bx bx-edit-alt'></i></button>
-                                <button class="view-btn delete-cat" data-id="${cat.id}" style="color: #ef4444;"><i class='bx bx-trash'></i></button>
-                            </div>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+    const tbody = document.getElementById('category-table-body');
+    const emptyState = document.getElementById('category-empty-state');
+
+    if (!tbody) return;
+
+    // Show loading state
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:15px; color:var(--text-muted); text-align:center;">
+        <i class='bx bx-loader-alt bx-spin'></i> Loading categories...
+    </td></tr>`;
+    if (emptyState) emptyState.classList.add('hidden');
+
+    // Build query – try ordering by display_order, fallback to created_at
+    let query = supabase.from('categories').select('*');
+    try {
+        const { data: test, error: testErr } = await supabase
+            .from('categories')
+            .select('display_order')
+            .limit(1);
+        if (!testErr) {
+            query = query.order('display_order', { ascending: true });
+        } else {
+            query = query.order('created_at', { ascending: true });
+        }
+    } catch (e) {
+        query = query.order('created_at', { ascending: true });
+    }
+
+const { data: cats, error } = await query;
+
+if (error) {
+    console.error('Failed to load categories:', error);
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:15px; color:red; text-align:center;">Error loading categories</td></tr>';
+    return;
+}
+
+// Fetch nomination counts per category (for the "Entries" column)
+let categoryCounts = {};
+try {
+    const { data: allNominations, error: nomErr } = await supabase
+        .from('nominations')
+        .select('category');
+    if (!nomErr && allNominations) {
+        allNominations.forEach(function(nom) {
+            const cat = nom.category || 'Uncategorized';
+            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        });
+    }
+} catch (e) {
+    console.warn('Could not fetch nomination counts', e);
+}
+
+// Attach the count to each category object
+cats.forEach(function(cat) {
+    cat._entries = categoryCounts[cat.name] || 0;
+});
+
+// Store globally
+window.__ALL_CATEGORIES__ = cats;
+
+    // Get filter values
+    const searchInput = document.getElementById('category-search');
+    const statusFilter = document.getElementById('category-status-filter');
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const filterVal = statusFilter ? statusFilter.value : '';
+
+    let filtered = cats || [];
+
+    if (searchTerm) {
+        filtered = filtered.filter(function(cat) {
+            return (cat.name || '').toLowerCase().indexOf(searchTerm) !== -1 ||
+                   (cat.description || '').toLowerCase().indexOf(searchTerm) !== -1;
+        });
+    }
+
+    if (filterVal === 'visible') {
+        filtered = filtered.filter(function(cat) { return cat.visible !== false; });
+    } else if (filterVal === 'hidden') {
+        filtered = filtered.filter(function(cat) { return cat.visible === false; });
+    }
+
+    // Update stats
+    const total = cats ? cats.length : 0;
+    const visibleCount = cats ? cats.filter(function(c) { return c.visible !== false; }).length : 0;
+    const hiddenCount = total - visibleCount;
+
+    document.getElementById('total-categories').textContent = total;
+    document.getElementById('visible-categories').textContent = visibleCount;
+    document.getElementById('hidden-categories').textContent = hiddenCount;
+document.getElementById('total-category-entries').textContent = cats.reduce((sum, cat) => sum + (cat._entries || 0), 0);
+
+    // Render table
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        if (emptyState) emptyState.classList.remove('hidden');
+        return;
+    }
+    if (emptyState) emptyState.classList.add('hidden');
+
+    filtered.forEach(function(cat) {
+        var tr = document.createElement('tr');
+        var visibleChecked = (cat.visible !== false) ? 'checked' : '';
+        tr.innerHTML = `
+            <td style="padding: 14px; border-bottom: 1px solid var(--bg-slate);">
+                <div style="font-weight: 600;">${cat.name}</div>
+            </td>
+            <td style="padding: 14px; border-bottom: 1px solid var(--bg-slate); font-size: 13px; color: var(--text-muted);">
+                ${cat.description || '—'}
+            </td>
+            <td style="padding: 14px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
+                ${cat._entries != null ? cat._entries : '—'}
+            </td>
+            <td style="padding: 14px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
+                <label class="switch-ui">
+                    <input type="checkbox" class="cat-visibility-toggle" data-id="${cat.id}" ${visibleChecked}>
+                    <span class="slider"></span>
+                </label>
+            </td>
+            <td style="padding: 14px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
+                <input type="number" class="display-order-input" data-id="${cat.id}" value="${cat.display_order || 0}" 
+                    style="width: 60px; padding: 4px; text-align: center; border: 1px solid var(--border-color); border-radius: 4px;" min="0">
+            </td>
+            <td style="padding: 14px; border-bottom: 1px solid var(--bg-slate);">
+                <div style="display: flex; gap: 8px;">
+                    <button class="view-btn edit-cat-trigger" data-id="${cat.id}" data-name="${cat.name}" data-desc="${cat.description || ''}">
+                        <i class='bx bx-edit-alt'></i> Edit
+                    </button>
+                    <button class="view-btn delete-cat" data-id="${cat.id}" style="color: #ef4444;">
+                        <i class='bx bx-trash'></i> Delete
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Attach event listeners for visibility toggles
+    var toggles = document.querySelectorAll('.cat-visibility-toggle');
+    for (var i = 0; i < toggles.length; i++) {
+        toggles[i].onchange = async function(e) {
+            var id = e.target.getAttribute('data-id');
+            var visible = e.target.checked;
+            var { error } = await supabase
+                .from('categories')
+                .update({ visible: visible })
+                .eq('id', id);
+            if (error) {
+                console.error('Failed to update visibility', error);
+                e.target.checked = !visible;
+            } else {
+                loadCategories();
             }
-            // update stat cards in categories view
-            const activeCard = document.querySelector('.stat-info h2');
-            const hiddenCard = document.querySelectorAll('.stat-info h2')[1];
-            if (activeCard) activeCard.textContent = (cats || []).length || '--';
-            if (hiddenCard) hiddenCard.textContent = '0';
-        } catch (err) {
-            console.error('failed to load categories', err);
+        };
+    }
+
+    // Attach event listeners for display order changes
+    var orderInputs = document.querySelectorAll('.display-order-input');
+    for (var j = 0; j < orderInputs.length; j++) {
+        orderInputs[j].onchange = async function(e) {
+            var id = e.target.getAttribute('data-id');
+            var newOrder = parseInt(e.target.value, 10) || 0;
+            var { error } = await supabase
+                .from('categories')
+                .update({ display_order: newOrder })
+                .eq('id', id);
+            if (error) console.error('Failed to update display order', error);
+        };
+    }
+
+    // Wire refresh button
+    var refreshBtn = document.getElementById('refresh-categories');
+    if (refreshBtn) refreshBtn.onclick = loadCategories;
+
+    // Wire clear button
+    var clearBtn = document.getElementById('clear-category-filters');
+    if (clearBtn) {
+        clearBtn.onclick = function() {
+            var sInput = document.getElementById('category-search');
+            var sSelect = document.getElementById('category-status-filter');
+            if (sInput) sInput.value = '';
+            if (sSelect) sSelect.value = '';
+            loadCategories();
+        };
+    }
+
+    // Search input with debounce
+    var catSearch = document.getElementById('category-search');
+    if (catSearch) {
+        catSearch.oninput = function() {
+            clearTimeout(window._catSearchTimeout);
+            window._catSearchTimeout = setTimeout(loadCategories, 300);
+        };
+    }
+
+    // Status filter
+    var statusSelect = document.getElementById('category-status-filter');
+    if (statusSelect) statusSelect.onchange = loadCategories;
+}
+
+async function loadFinalists() {
+    // Fetch categories and finalists
+    const [{ data: categories, error: catErr }, { data: finalists, error: finErr }] = await Promise.all([
+        supabase.from('categories').select('*').order('display_order', { ascending: true }),
+        supabase.from('nominations').select('*').eq('stage', 'finalist')
+    ]);
+
+    if (catErr) console.error('Failed to load categories', catErr);
+    if (finErr) console.error('Failed to load finalists', finErr);
+
+    const cats = categories || [];
+    const finalistList = finalists || [];
+
+    // Render category cards
+    const container = document.getElementById('category-cards-container');
+    if (container) {
+        container.innerHTML = '';
+        for (const cat of cats) {
+            // Count total nominees in this category (global)
+            let nomineeCount = 0;
+            try {
+                const { count } = await supabase
+                    .from('nominations')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('category', cat.name);
+                nomineeCount = count || 0;
+            } catch (e) { /* ignore */ }
+
+            // Count finalists for this category
+            const finalistCount = finalistList.filter(n => n.category === cat.name).length;
+            const statusText = finalistCount > 0 ? 'Completed' : 'Not Started';
+            const statusClass = finalistCount > 0 ? 'status-badge verified' : 'status-badge';
+
+            const card = document.createElement('div');
+            card.className = 'category-card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <h4>${cat.name}</h4>
+                    <span class="${statusClass}">${statusText}</span>
+                </div>
+                <div class="card-stats">
+                    <span><i class='bx bx-user'></i> ${nomineeCount} nominees</span>
+                    <span><i class='bx bx-check-shield'></i> ${finalistCount} finalists</span>
+                </div>
+                <div class="card-actions">
+                    <button class="view-btn begin-judgement" data-category="${cat.name}">Begin Judgement</button>
+                </div>
+            `;
+            container.appendChild(card);
         }
     }
 
-    // fetch and display nominations list in nominations view
-  // fetch and display nominations list in nominations view
-    async function loadNominations() {
-        try {
-            // 1. Check the dropdown for a selected filter
-            const categoryFilter = document.getElementById('category-filter');
-            const categoryVal = categoryFilter ? categoryFilter.value : 'all';
+    // Render finalist table
+    renderFinalistTable(finalistList);
 
-            // 2. Build the query. If a specific category is selected, chain the .eq() filter
-            let query = supabase.from('nominations').select('*').order('created_at', { ascending: false });
-            if (categoryVal !== 'all') {
-                query = query.eq('category', categoryVal); 
-            }
+    // Refresh button
+    document.getElementById('refresh-finalists')?.addEventListener('click', loadFinalists);
+}
 
-            // 3. Execute the query
-            const { data: nominations, error } = await query;
-            if (error) throw error;
-            
-            const tbody = document.querySelector('#nominations-tbody') || document.querySelector('#content-area tbody');
-            if (!tbody) return;
-            tbody.innerHTML = ''; // clear existing
-            
-            // keep a map for quick lookup when opening modal
-            window.__NOMINATIONS_MAP__ = {};
-            
-            if (!nominations || nominations.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding:15px; color:var(--text-muted); text-align:center;">No nominations match your filter.</td></tr>';
+async function openWorkflowModal(categoryName) {
+    // 1. Fetch all nominations for this category
+    const { data: nominations, error } = await supabase
+        .from('nominations')
+        .select('*')
+        .eq('category', categoryName);
+
+    if (error || !nominations) {
+        alert('Could not fetch nominations');
+        return;
+    }
+
+    // 2. Group by normalized name, count nominations
+    const groups = {};
+    nominations.forEach(nom => {
+        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!groups[key]) {
+            groups[key] = {
+                displayName: nom.nominee_name.trim(),
+                count: 0,
+                ids: [],
+                records: []
+            };
+        }
+        groups[key].count++;
+        groups[key].ids.push(nom.id);
+        groups[key].records.push(nom);
+    });
+
+    const groupedList = Object.values(groups).sort((a, b) => b.count - a.count); // descending by count
+
+    // Store for the modal steps
+    const workflowData = {
+        category: categoryName,
+        groupedCandidates: groupedList,
+        selectedCount: 5 // default
+    };
+
+    function showStep1() {
+        const modal = document.getElementById('detailsModal');
+        document.getElementById('modal-title').textContent = `Judgement: ${categoryName}`;
+        document.getElementById('modal-subtitle').textContent = 'Step 1: Set finalist count';
+        document.getElementById('modal-data').innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <p>How many finalists do you want to advance?</p>
+                <input type="number" id="finalist-count-input" value="5" min="1" max="${groupedList.length}" 
+                    style="width: 100px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; text-align: center;">
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button class="btn-secondary close-modal">Cancel</button>
+                    <button class="btn-primary" id="next-to-step2">Next</button>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+
+        document.getElementById('next-to-step2').onclick = () => {
+            const count = parseInt(document.getElementById('finalist-count-input').value, 10) || 5;
+            workflowData.selectedCount = Math.min(count, groupedList.length);
+            showStep2(workflowData);
+        };
+    }
+
+    function showStep2(data) {
+        const modal = document.getElementById('detailsModal');
+        document.getElementById('modal-subtitle').textContent = 'Step 2: Review and adjust candidates';
+
+        // Build the candidate list HTML
+        let html = `<div style="max-height: 450px; overflow-y: auto;">`;
+        html += `<p style="margin-bottom: 10px; color: var(--text-muted);">Top ${data.selectedCount} selected by nomination count. You can manually adjust.</p>`;
+        html += `<table style="width: 100%; border-collapse: collapse;">`;
+        html += `<thead><tr>
+            <th></th>
+            <th>Nominee</th>
+            <th>Nominations</th>
+            <th>Flagged</th>
+            <th>Actions</th>
+        </tr></thead><tbody>`;
+
+        data.groupedCandidates.forEach((candidate, index) => {
+            const checked = index < data.selectedCount ? 'checked' : '';
+            const flagged = candidate.records.some(r => r.flagged);
+            html += `<tr>
+                <td style="padding: 8px;"><input type="checkbox" class="candidate-checkbox" data-index="${index}" ${checked}></td>
+                <td style="padding: 8px; font-weight: 600;">${candidate.displayName}</td>
+                <td style="padding: 8px;">${candidate.count}</td>
+                <td style="padding: 8px;">${flagged ? '<i class="bx bxs-flag" style="color: #ef4444;"></i>' : '—'}</td>
+                <td style="padding: 8px; display: flex; gap: 4px;">
+                    <button class="view-btn flag-candidate-btn" data-name="${candidate.displayName}" data-ids="${candidate.ids.join(',')}">Flag</button>
+                    <button class="view-btn merge-candidate-btn" data-name="${candidate.displayName}">Merge</button>
+                    <button class="view-btn remove-candidate-btn" data-name="${candidate.displayName}" data-ids="${candidate.ids.join(',')}" style="color: #ef4444;">Remove</button>
+                </td>
+            </tr>`;
+        });
+        html += `</tbody></table></div>`;
+        html += `<div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <button class="btn-secondary close-modal">Cancel</button>
+            <button class="btn-primary" id="confirm-finalists">Confirm & Advance</button>
+        </div>`;
+
+        document.getElementById('modal-data').innerHTML = html;
+        modal.style.display = 'flex';
+
+        // Handle Confirm
+        document.getElementById('confirm-finalists').onclick = async () => {
+            const checkboxes = document.querySelectorAll('.candidate-checkbox:checked');
+            const selectedNames = [];
+            const selectedIds = [];
+            checkboxes.forEach(cb => {
+                const idx = cb.getAttribute('data-index');
+                const candidate = data.groupedCandidates[idx];
+                selectedNames.push(candidate.displayName);
+                selectedIds.push(...candidate.ids);
+            });
+
+            if (selectedIds.length === 0) {
+                alert('Please select at least one finalist.');
                 return;
             }
 
-            nominations.forEach(nom => {
-                window.__NOMINATIONS_MAP__[nom.id] = nom;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">${new Date(nom.created_at).toLocaleString()}</td>
-                    <td data-email="${nom.nominee_email || ''}" style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">${nom.nominee_name}</td>
-                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">${nom.category || ''}</td>
-                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><span class="status-badge ${nom.status || 'pending'}">${nom.status || 'Pending'}</span></td>
-                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                        <label class="switch-ui"><input type="checkbox" ${nom.public ? 'checked' : ''}><span class="slider"></span></label>
-                    </td>
-                    <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);"><button class="view-btn review-trigger" data-id="${nom.id}">Review</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        } catch (err) {
-            console.error('error loading nominations', err);
-        }
-        
-        // ... (Keep your exact export button logic right here, do not delete it) ...
-        const exportBtn = document.getElementById('export-nominations-btn');
-        if (exportBtn) {
-                    exportBtn.onclick = async () => {
-                        // use the nominations map if present, otherwise fetch fresh
-                        let items = Object.values(window.__NOMINATIONS_MAP__ || {});
-                        if (!items.length) {
-                            const { data: fresh, error } = await supabase.from('nominations').select('*').order('created_at', { ascending: false }).limit(100);
-                            items = error ? [] : (fresh || []);
-                        }
-                        if (!items.length) return alert('No nominations to export');
-                        const csvRows = [];
-                        const headers = ['id','nominee_name','nominee_email','nominator_email','category','faculty','department','level','created_at'];
-                        csvRows.push(headers.join(','));
-                        items.forEach(it => {
-                            const row = headers.map(h => '"'+String(it[h]||'').replace(/"/g,'""')+'"').join(',');
-                            csvRows.push(row);
-                        });
-                        const csv = csvRows.join('\n');
-                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `nominations_export_${new Date().toISOString().slice(0,10)}.csv`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                    };
-                }
-        // ...
+            // Update stage to 'finalist' for selected, and keep others as 'nominated'
+            try {
+                // First set all nominations in this category to 'nominated' (reset)
+                await supabase.from('nominations').update({ stage: 'nominated' }).eq('category', categoryName);
+                // Then set selected to 'finalist'
+                await supabase.from('nominations').update({ stage: 'finalist' }).in('id', selectedIds);
+                alert('Finalists advanced successfully!');
+                modal.style.display = 'none';
+                loadFinalists();
+            } catch (err) {
+                console.error('Failed to update stages', err);
+                alert('Error updating finalists.');
+            }
+        };
+
+        // Flag button handler (delegation inside modal)
+        document.querySelectorAll('.flag-candidate-btn').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const ids = btn.getAttribute('data-ids').split(',').map(Number);
+                const name = btn.getAttribute('data-name');
+                const flaggedStatus = !btn.classList.contains('flagged'); // toggle
+                await supabase.from('nominations').update({ flagged: flaggedStatus }).in('id', ids);
+                // Reload step2 to reflect changes
+                showStep2(data);
+            };
+        });
+
+        // Merge button opens global merge modal (reuse existing)
+        document.querySelectorAll('.merge-candidate-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                // Show merge suggestions; this will affect global data
+                showMergeSuggestions();
+                // After merge, we could refresh but easier to close and reopen workflow
+                // For simplicity, just call showMergeSuggestions and close current modal
+                document.getElementById('detailsModal').style.display = 'none';
+            };
+        });
+
+        // Remove button (disqualify)
+        document.querySelectorAll('.remove-candidate-btn').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const ids = btn.getAttribute('data-ids').split(',').map(Number);
+                const name = btn.getAttribute('data-name');
+                if (!confirm(`Disqualify "${name}"? This will set stage to 'disqualified'.`)) return;
+                await supabase.from('nominations').update({ stage: 'disqualified' }).in('id', ids);
+                // Refresh step2
+                const updatedNominations = await supabase.from('nominations').select('*').eq('category', categoryName);
+                // Rebuild groups (quickly)
+                const newGroups = {};
+                (updatedNominations.data || []).forEach(nom => {
+                    const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+                    if (!newGroups[key]) newGroups[key] = { displayName: nom.nominee_name.trim(), count: 0, ids: [], records: [] };
+                    newGroups[key].count++;
+                    newGroups[key].ids.push(nom.id);
+                    newGroups[key].records.push(nom);
+                });
+                data.groupedCandidates = Object.values(newGroups).sort((a, b) => b.count - a.count);
+                showStep2(data);
+            };
+        });
     }
 
-    // Event Delegation
-    document.addEventListener('click', async (e) => {
-        if (e.target.id === 'apply-filters-btn') {
-            await loadNominations();
-            return;
-        }
+    showStep1();
+}
 
-        if (e.target.classList.contains('review-trigger')) {
-            const id = e.target.getAttribute('data-id');}
-        if (e.target.classList.contains('review-trigger')) {
-            const id = e.target.getAttribute('data-id');
-            const nom = (window.__NOMINATIONS_MAP__ || {})[id];
+function renderFinalistTable(finalists) {
+    const tbody = document.getElementById('finalist-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (finalists.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">No finalists yet.</td></tr>';
+        return;
+    }
+
+    // Group by name for clean display
+    const grouped = {};
+    finalists.forEach(n => {
+        const key = n.nominee_name.trim();
+        if (!grouped[key]) grouped[key] = { name: key, categories: new Set(), votes: 0, flagged: false, ids: [] };
+        grouped[key].categories.add(n.category);
+        grouped[key].votes += n.votes || 0;
+        if (n.flagged) grouped[key].flagged = true;
+        grouped[key].ids.push(n.id);
+    });
+
+    Object.values(grouped).forEach(g => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 12px; font-weight: 600;">${g.name}</td>
+            <td style="padding: 12px;">${[...g.categories].join(', ')}</td>
+            <td style="padding: 12px;">${g.votes}</td>
+            <td style="padding: 12px;">${g.flagged ? '<i class="bx bxs-flag" style="color: #ef4444;"></i>' : '—'}</td>
+            <td style="padding: 12px;">
+                <button class="view-btn view-nominee-finalist" data-ids="${g.ids.join(',')}">View</button>
+                <button class="view-btn remove-finalist-btn" data-ids="${g.ids.join(',')}" style="color: #ef4444;">Remove</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('finalist-count-badge').textContent = finalists.length;
+}
+
+    // fetch and display nominations list in nominations view
+  // fetch and display nominations list in nominations view
+async function loadNominations() {
+    // 1. Fetch all nominations (limit high to include everything)
+    const { data: allNoms, error } = await supabase
+        .from('nominations')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10000);
+
+    if (error) {
+        console.error('Error loading nominations', error);
+        return;
+    }
+
+    // Store for export (full list)
+    window.__ALL_NOMINATIONS__ = allNoms || [];
+    // Build ID map for fast lookup when clicking "Details"
+window.__NOMINATIONS_MAP__ = {};
+(allNoms || []).forEach(nom => { window.__NOMINATIONS_MAP__[nom.id] = nom; });
+
+    // 2. Get filter values
+    const nameSearch = (document.getElementById('name-search')?.value || '').trim().toLowerCase();
+    const categoryVal = document.getElementById('category-filter')?.value || 'all';
+    const statusVal = document.getElementById('status-filter')?.value || 'all';
+
+    // 3. Filter individual rows (so group counts reflect only matching entries)
+    let filteredRows = allNoms || [];
+    if (nameSearch) {
+        filteredRows = filteredRows.filter(nom =>
+            (nom.nominee_name || '').toLowerCase().includes(nameSearch)
+        );
+    }
+    if (categoryVal !== 'all') {
+        filteredRows = filteredRows.filter(nom => nom.category === categoryVal);
+    }
+    if (statusVal !== 'all') {
+        filteredRows = filteredRows.filter(nom => nom.status === statusVal);
+    }
+
+    // 4. Group by normalized nominee name
+    const groups = {};
+    filteredRows.forEach(nom => {
+        // Normalize: trim, lowercase, collapse multiple spaces
+        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!groups[key]) {
+            groups[key] = {
+                displayName: nom.nominee_name.trim(), // keep original casing from first occurrence
+                count: 0,
+                lastDate: nom.created_at,
+                records: []
+            };
+        }
+        groups[key].count++;
+        groups[key].records.push(nom);
+        // Update last submission date if newer
+        if (new Date(nom.created_at) > new Date(groups[key].lastDate)) {
+            groups[key].lastDate = nom.created_at;
+        }
+    });
+
+    // 5. Render grouped table
+    const tbody = document.getElementById('nominees-grouped-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const groupArray = Object.values(groups);
+    if (groupArray.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:15px; color:var(--text-muted); text-align:center;">No nominees match your filters.</td></tr>';
+        return;
+    }
+
+    // Sort groups alphabetically (or by count, up to you)
+    groupArray.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    groupArray.forEach(group => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">
+                ${group.displayName}
+            </td>
+            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+                <span class="status-badge" style="background: var(--jci-blue); color: white;">${group.count}</span>
+            </td>
+            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">
+                ${new Date(group.lastDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </td>
+            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
+                <button class="view-btn view-group-trigger" data-name="${group.displayName}">View Submissions</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // 6. Export button – exports all raw rows (not grouped)
+    const exportBtn = document.getElementById('export-nominations-btn');
+    if (exportBtn) {
+        exportBtn.onclick = () => {
+            const all = window.__ALL_NOMINATIONS__ || [];
+            if (!all.length) return alert('No data to export');
+            exportCSV(all);
+        };
+    }
+}
+
+async function showMergeSuggestions() {
+    const allRows = window.__ALL_NOMINATIONS__ || [];
+    if (!allRows.length) return alert('No data loaded.');
+
+    // 1. Get unique normalized names (display name for reference)
+    const nameMap = new Map(); // key: normalized, value: { display, count, ids:[] }
+    allRows.forEach(nom => {
+        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!nameMap.has(key)) {
+            nameMap.set(key, {
+                display: nom.nominee_name.trim(),
+                count: 0,
+                ids: []
+            });
+        }
+        const entry = nameMap.get(key);
+        entry.count++;
+        entry.ids.push(nom.id);
+    });
+
+    const uniqueNames = Array.from(nameMap.values());
+
+    // 2. Configure Fuse.js
+    const fuse = new Fuse(uniqueNames, {
+        keys: ['display'],
+        threshold: 0.4,      // lower = stricter; 0.4 catches many typos
+        includeScore: true
+    });
+
+    // 3. Find pairs of similar names (avoid duplicate pairs)
+    const pairs = []; // { nameA: display, nameB: display, score: number, keyA, keyB }
+    const processed = new Set();
+
+    uniqueNames.forEach(itemA => {
+        const results = fuse.search(itemA.display);
+        results.forEach(result => {
+            const itemB = result.item;
+            if (itemA.display === itemB.display) return;
+            const key = [itemA.display, itemB.display].sort().join('||');
+            if (processed.has(key)) return;
+            processed.add(key);
+            pairs.push({
+                nameA: itemA.display,
+                nameB: itemB.display,
+                score: result.score,
+                countA: itemA.count,
+                countB: itemB.count,
+                idsA: itemA.ids,
+                idsB: itemB.ids
+            });
+        });
+    });
+
+    // Sort by score (lower is more similar)
+    pairs.sort((a, b) => a.score - b.score);
+
+    if (pairs.length === 0) {
+        alert('No potential duplicates found.');
+        return;
+    }
+
+    // 4. Build modal HTML to show suggestions
+    const modal = document.getElementById('detailsModal');
+    document.getElementById('modal-title').textContent = 'Merge Suggestions';
+    document.getElementById('modal-subtitle').textContent = 'Select which names to merge (choose the correct spelling).';
+    
+    let html = '<div style="max-height: 400px; overflow-y: auto;">';
+    pairs.forEach((pair, index) => {
+        html += `
+            <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${pair.nameA}</strong> (${pair.countA} entries) vs 
+                        <strong>${pair.nameB}</strong> (${pair.countB} entries)
+                    </div>
+                    <span style="font-size:12px; color:var(--text-muted);">Similarity: ${Math.round((1 - pair.score) * 100)}%</span>
+                </div>
+                <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button class="btn-primary merge-btn" data-keep="${pair.nameA}" data-merge="${pair.nameB}" data-idsA="${pair.idsA.join(',')}" data-idsB="${pair.idsB.join(',')}" style="font-size:12px; padding:6px 12px;">
+                        Keep "${pair.nameA}" (merge other into this)
+                    </button>
+                    <button class="btn-primary merge-btn" data-keep="${pair.nameB}" data-merge="${pair.nameA}" data-idsA="${pair.idsA.join(',')}" data-idsB="${pair.idsB.join(',')}" style="font-size:12px; padding:6px 12px; background: var(--jci-teal);">
+                        Keep "${pair.nameB}" (merge other into this)
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    html += '<div style="margin-top:20px; text-align:right;"><button class="btn-secondary close-modal">Close</button></div>';
+
+    document.getElementById('modal-data').innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+// Helper to generate CSV (placed outside, e.g., after loadNominations)
+function exportCSV(items) {
+    const headers = ['id','nominee_name','nominee_email','nominator_email','category','faculty','department','level','status','whatsapp_contact','reason','created_at'];
+    const csvRows = [headers.join(',')];
+    items.forEach(it => {
+        const row = headers.map(h => '"'+String(it[h]||'').replace(/"/g,'""')+'"').join(',');
+        csvRows.push(row);
+    });
+    const csv = csvRows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nominations_export_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+    // Event Delegation
+document.addEventListener('click', async (e) => {
+    // ----- Apply filters -----
+    if (e.target.id === 'apply-filters-btn') {
+        await loadNominations();
+        return;
+    }
+
+    // ----- Open single nomination details (profile card) -----
+    if (e.target.classList.contains('review-trigger')) {
+        const id = e.target.getAttribute('data-id');
+        const nom = (window.__NOMINATIONS_MAP__ || {})[id];
+        if (nom) {
             openNominationModal(nom);
             return;
         }
-        if (e.target.classList.contains('close-modal')) modal.style.display = 'none';
-        //nomination approval Workflow
-        if (e.target.closest('.approve-trigger')) {
-            const btn = e.target.closest('.approve-trigger');
-            const id = btn.getAttribute('data-id');
-            if (!id) return alert('Nomination id missing');
-            if (!confirm('Approve this nomination and mark as Verified?')) return;
-            // call server to update status
-            try {
-                const { data, error } = await supabase.from('nominations').update({ status: 'verified' }).eq('id', id).select();
-                if (error) throw error;
-                alert('Nomination marked Verified');
-                modal.style.display = 'none';
-                await loadNominations();
-                await loadOverview();
-            } catch (err) {
-                console.error(err);
-                alert('Failed to update nomination. Check RLS and anon key permissions.');
-            }
-            return;
-        }
-        // Nomination flagging Workflow
-        if (e.target.closest('.flag-trigger')) {
+    }
 
-            const concern = prompt("Specify the concern for flagging (e.g., Potential duplicate, suspicious documentation):");
+    // ----- Open grouped submissions list -----
+    if (e.target.classList.contains('view-group-trigger')) {
+        const displayName = e.target.getAttribute('data-name');
+        const allRows = window.__ALL_NOMINATIONS__ || [];
+        const matching = allRows.filter(nom =>
+            nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ') === displayName.toLowerCase().replace(/\s+/g, ' ')
+        );
 
-            if (concern !== null && concern.trim() !== "") {
-                if (confirm("Flag this nomination for Auditor review?")) {
+        let rowsHtml = '';
+        matching.forEach(nom => {
+            rowsHtml += `
+                <tr>
+                    <td style="padding:8px;">${new Date(nom.created_at).toLocaleDateString()}</td>
+                    <td style="padding:8px;">${nom.category || '—'}</td>
+                    <td style="padding:8px;"><span class="status-badge ${nom.status || 'pending'}">${nom.status || 'Pending'}</span></td>
+                    <td style="padding:8px;"><button class="view-btn review-trigger" data-id="${nom.id}">Details</button></td>
+                </tr>
+            `;
+        });
 
-                    alert("Entry Flagged.\nConcern: " + concern + "\nAn Auditor has been notified for investigation.");
+        document.getElementById('modal-title').textContent = `Submissions for ${displayName}`;
+        document.getElementById('modal-subtitle').textContent = `${matching.length} nomination(s)`;
+        document.getElementById('modal-data').innerHTML = `
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead><tr>
+                        <th>Date</th><th>Category</th><th>Status</th><th></th>
+                    </tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn-secondary close-modal">Close</button>
+            </div>
+        `;
+        document.getElementById('detailsModal').style.display = 'flex';
+        return;
+    }
 
-                    const modal = document.getElementById('detailsModal');
-                    modal.style.display = 'none';
+    // ----- Close modals (both the main and grouped) -----
+    if (e.target.classList.contains('close-modal') || e.target.closest('.close-modal')) {
+        document.getElementById('detailsModal').style.display = 'none';
+        return;
+    }
 
-                    console.log("Nomination flagged by Admin. Concern: " + concern);
+    // ----- Keep your existing voting, categories, etc. handlers below -----
+    // (do not remove them – just make sure they are after the above)
+    // ... the rest of your event handlers (voting, categories, etc.) ...
+if (e.target.classList.contains('begin-judgement')) {
+    const category = e.target.getAttribute('data-category');
+    openWorkflowModal(category);
+    return;
+}
 
-                }
-            } else if (concern === "") {
-                alert("Action Cancelled: You must specify a concern to flag an entry.");
-            }
-        }
-        // Nomination rejection Workflow
-        if (e.target.closest('.reject-trigger')) {
+if (e.target.classList.contains('remove-finalist-btn')) {
+    const ids = e.target.getAttribute('data-ids').split(',').map(Number);
+    if (!confirm('Remove these finalists? Stage will revert to nominated.')) return;
+    await supabase.from('nominations').update({ stage: 'nominated' }).in('id', ids);
+    loadFinalists();
+    return;
+}
+    // Show merge suggestions
+if (e.target.id === 'show-merge-suggestions-btn') {
+    showMergeSuggestions();
+    return;
+}
 
-            const reason = prompt("Please enter the reason for rejection (e.g., Ineligible age, Missing documents):");
+// Handle merge action
+if (e.target.classList.contains('merge-btn')) {
+    const keepName = e.target.getAttribute('data-keep');
+    const mergeName = e.target.getAttribute('data-merge');
+    const idsA = e.target.getAttribute('data-idsA').split(',').map(Number);
+    const idsB = e.target.getAttribute('data-idsB').split(',').map(Number);
 
-            if (reason !== null && reason.trim() !== "") {
-                if (confirm("Confirm Rejection? This action cannot be undone.")) {
+    if (!confirm(`Merge all entries from "${mergeName}" into "${keepName}"? This will update the database.`)) return;
 
-                    alert("Nomination Rejected.\nReason: " + reason + "\nStatus updated for Audit Log.");
+    try {
+        // Update all nominations with the merged name (keepName) where the id is in idsB
+        const { error } = await supabase
+            .from('nominations')
+            .update({ nominee_name: keepName })
+            .in('id', idsB);
+        if (error) throw error;
+        alert('Merge successful. Refreshing list...');
+        document.getElementById('detailsModal').style.display = 'none';
+        await loadNominations();
+    } catch (err) {
+        console.error('Merge failed', err);
+        alert('Failed to merge names. Check console.');
+    }
+    return;
+}
 
-                    const modal = document.getElementById('detailsModal');
-                    modal.style.display = 'none';
 
-                    console.log("Nomination rejected by Admin. Reason: " + reason);
-                }
-            } else if (reason === "") {
-                alert("Action Cancelled: A reason is required to reject a nomination.");
-            }
-        }
-
-
-        //CATEGORY MODAL MANAGEMENT TRIGGERS
-        // Trigger for Add Category
-        if (e.target.id === 'add-cat-trigger') {
-            openCategoryModal(false);
-        }
-        // Trigger for Edit Category (pass id so save can PATCH)
-        if (e.target.closest('.edit-cat-trigger')) {
-            const btn = e.target.closest('.edit-cat-trigger');
-            const id = btn.getAttribute('data-id');
-            const name = btn.getAttribute('data-name');
-            const desc = btn.getAttribute('data-desc'); // Now fetching description
-            openCategoryModal(true, { id, name, desc });
-        }
-
-        // Handle the "Save" inside the modal (create or update)
-        if (e.target.id === 'save-category-btn') {
-            const newName = document.getElementById('cat-name-input').value;
-            const newDesc = document.getElementById('cat-desc-input').value;
-            const saveBtn = document.getElementById('save-category-btn');
-            const editId = saveBtn ? saveBtn.dataset.editId : null;
-
-            if (newName.trim() === "" || newDesc.trim() === "") {
-                return alert("Please fill in both the Category Name and Description.");
-            }
-
-            // prepare payload
-            const payload = { name: newName.trim(), description: newDesc.trim() };
-
-            try {
-                if (editId) {
-                    // update existing category via Supabase
-                    const { data, error } = await supabase.from('categories').update(payload).eq('id', editId).select();
-                    if (error) throw error;
-                    alert(`Success: '${newName}' updated.`);
-                } else {
-                    // create new category via Supabase
-                    const { data, error } = await supabase.from('categories').insert([payload]).select();
-                    if (error) throw error;
-                    alert(`Success: '${newName}' created.`);
-                }
-                document.getElementById('detailsModal').style.display = 'none';
-                await loadCategories();
-            } catch (err) {
-                console.error('category save error', err);
-                alert('Failed to save category');
-            }
-        }
-
-        // Trigger for Deleting a Category
-        if (e.target.closest('.delete-cat')) {
-            const btn = e.target.closest('.delete-cat');
-            const id = btn.getAttribute('data-id');
-            if (!id) return alert('Category id missing');
-            if (!confirm('Delete this category? This action cannot be undone.')) return;
-            try {
-                const { data, error } = await supabase.from('categories').delete().eq('id', id).select();
-                if (error) throw error;
-                alert('Category deleted');
-                await loadCategories();
-            } catch (err) {
-                console.error('failed to delete category', err);
-                alert('Failed to delete category');
-            }
-        }
-
-        // Trigger for Finalist Dossier Modal
-        if (e.target.closest('.live-profile-trigger')) {
-            openDossierModal();
-        }
-
-        // Voting Phase Control
-        if (e.target.id === 'start-v') {
-            alert("SUCCESS: Voting portal is now open to the public.");
-            e.target.style.display = 'none';
-            document.getElementById('stop-v').style.display = 'block';
-            document.getElementById('v-status').textContent = "Phase: Active";
-            document.getElementById('v-status').style.background = "#dcfce7";
-            document.getElementById('v-status').style.color = "#166534";
-        }
-        if (e.target.id === 'stop-v') {
-            alert("CONFIRMED: Voting portal is now closed.");
-            e.target.style.display = 'none';
-            document.getElementById('start-v').style.display = 'block';
-            const statusLabel = document.getElementById('v-status');
-            statusLabel.textContent = "Phase: Paused";
-            statusLabel.style.background = "#FEE2E2";
-            statusLabel.style.color = "#991B1B";
-        }
-    });
+});
 
 
     // --- MOBILE MENU LOGIC ---

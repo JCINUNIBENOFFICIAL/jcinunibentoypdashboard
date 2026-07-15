@@ -1,46 +1,247 @@
-<!-- Voting Management view - control public voting sessions and monitor real-time ballot counts -->
+<!-- Voting Operations Dashboard -->
 <template>
-	<div class="view-header">
-		<h1>Voting Management</h1>
-		<div class="header-actions">
-			<span class="status-badge pending" id="v-status">Phase: Paused</span>
-		</div>
-	</div>
 
-	<div id="voting-banner" class="voting-banner locked">
-		<i class='bx bxs-lock'></i>
-		<span>VOTING IS CURRENTLY LOCKED: Public access is disabled.</span>
-	</div>
+    <div class="view-header">
+        <div>
+            <h1>Voting Operations</h1>
+            <p>Manage the public voting process, monitor live statistics and control the election.</p>
+        </div>
 
-	<div class="stats-grid" style="margin-bottom: 25px;">
-		<div class="stat-card" style="border-left: 4px solid var(--jci-teal);">
-			<div class="stat-info">
-				<span>Total Ballots Cast</span>
-				<h2 id="live-vote-count">1,205</h2>
-			</div>
-			<div class="live-indicator">
-				<span class="dot"></span> Live
-			</div>
-		</div>
-		<div class="stat-card" style="border-left: 4px solid var(--jci-yellow);">
-			<div class="stat-info">
-				<span>Time Remaining</span>
-				<h2 id="voting-timer">00:00:00</h2>
-			</div>
-			<i class='bx bx-timer' style="color: var(--jci-yellow); font-size: 24px;"></i>
-		</div>
-	</div>
+        <div class="header-actions">
+            <span class="status-badge status-live" id="v-status">
+                <i class='bx bxs-circle'></i>
+                Voting Closed
+            </span>
+        </div>
+    </div>
 
-	<div class="card" style="margin-bottom: 25px;">
-		<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-			<div>
-				<h3 style="margin-bottom: 5px;">Public Portal Control</h3>
-				<p style="color: var(--text-muted); font-size: 14px;">Launch the 2026 voting cycle or terminate early.</p>
-			</div>
-			<div style="display: flex; gap: 10px;">
-				<button class="btn-primary" id="start-v" style="background: var(--jci-teal); padding: 10px 20px;">Open Voting</button>
-				<button class="btn-reject" id="stop-v" style="display:none; padding: 10px 20px;">Close Voting</button>
-			</div>
-		</div>
-	</div>
+    <!-- ========================= -->
+    <!-- Voting Status Banner -->
+    <!-- ========================= -->
+
+    <div id="voting-banner" class="card" style="margin-bottom:25px;border-left:5px solid #ef4444;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;">
+
+            <div>
+                <h3 style="margin-bottom:8px;">Voting Status</h3>
+                <p style="color:var(--text-muted);">
+                    Public voting is currently disabled. Participants cannot vote until voting is opened.
+                </p>
+            </div>
+
+            <button class="btn-primary" id="toggle-voting">
+                <i class='bx bx-power-off'></i>
+                Open Voting
+            </button>
+
+        </div>
+    </div>
+
+    <!-- ========================= -->
+    <!-- Live Stats -->
+    <!-- ========================= -->
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Votes Today</span>
+                <h2 id="votes-today">0</h2>
+            </div>
+
+            <i class='bx bx-bar-chart-alt'></i>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Votes</span>
+                <h2 id="live-vote-count">0</h2>
+            </div>
+
+            <i class='bx bx-check-shield'></i>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Live Visitors</span>
+                <h2 id="live-visitors">0</h2>
+            </div>
+
+            <i class='bx bx-pulse'></i>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Time Remaining</span>
+                <h2 id="voting-timer">00:00:00</h2>
+            </div>
+
+            <i class='bx bx-timer'></i>
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Operations -->
+    <!-- ========================= -->
+
+    <div class="card" style="margin-top:30px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;flex-wrap:wrap;gap:20px;">
+
+            <div>
+                <h3>Voting Operations</h3>
+                <p style="color:var(--text-muted);font-size:13px;">
+                    Execute voting actions and system maintenance.
+                </p>
+            </div>
+
+        </div>
+
+        <div style="
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+            gap:20px;
+        ">
+
+            <button class="btn-primary" id="start-v">
+                <i class='bx bx-play-circle'></i>
+                Open Voting
+            </button>
+
+            <button class="btn-warning" id="pause-v">
+                <i class='bx bx-pause-circle'></i>
+                Pause Voting
+            </button>
+
+            <button class="btn-reject" id="stop-v">
+                <i class='bx bx-stop-circle'></i>
+                Close Voting
+            </button>
+
+            <button class="view-btn" id="reset-votes">
+                <i class='bx bx-refresh'></i>
+                Reset Voting
+            </button>
+
+            <button class="view-btn" id="export-votes">
+                <i class='bx bx-download'></i>
+                Export Votes
+            </button>
+
+            <button class="view-btn" id="refresh-stats">
+                <i class='bx bx-sync'></i>
+                Refresh Statistics
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Live Activity -->
+    <!-- ========================= -->
+
+    <div class="card" style="margin-top:30px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3>Recent Voting Activity</h3>
+
+            <span style="font-size:13px;color:var(--text-muted);">
+                Live Updates
+            </span>
+        </div>
+
+        <div class="table-responsive">
+
+            <table style="width:100%;border-collapse:collapse;">
+
+                <thead>
+
+                    <tr>
+
+                        <th style="padding:12px;">TIME</th>
+                        <th style="padding:12px;">ACTION</th>
+                        <th style="padding:12px;">CATEGORY</th>
+                        <th style="padding:12px;">IP ADDRESS</th>
+                        <th style="padding:12px;">STATUS</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="voting-activity-body">
+
+                    <tr class="loading-row">
+
+                        <td colspan="5" style="padding:25px;text-align:center;color:var(--text-muted);">
+                            Loading voting activity...
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- Export & Maintenance -->
+    <!-- ========================= -->
+
+    <div class="card" style="margin-top:30px;">
+
+        <h3 style="margin-bottom:20px;">Maintenance & Reports</h3>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;">
+
+            <div class="mini-card">
+
+                <h4>Export Results</h4>
+
+                <p>
+                    Download certified voting records for audit purposes.
+                </p>
+
+                <button class="btn-primary" id="download-report">
+                    Export Results
+                </button>
+
+            </div>
+
+            <div class="mini-card">
+
+                <h4>Voting Integrity</h4>
+
+                <p>
+                    Run duplicate vote detection and fraud checks.
+                </p>
+
+                <button class="view-btn" id="audit-votes">
+                    Run Audit
+                </button>
+
+            </div>
+
+            <div class="mini-card">
+
+                <h4>Database Sync</h4>
+
+                <p>
+                    Synchronize live voting data with Supabase.
+                </p>
+
+                <button class="view-btn" id="sync-votes">
+                    Sync Now
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </template>

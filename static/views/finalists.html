@@ -1,65 +1,43 @@
-<!-- Nominee & Finalist Management view - manage shortlisted candidates and their public visibility -->
 <template>
     <div class="view-header">
-        <h1>Nominee & Finalist Management</h1>
+        <div>
+            <h1>Nominee & Finalist Management</h1>
+            <p>Manage nominees and advance finalists per category.</p>
+        </div>
         <div class="header-actions">
-            <button class="view-btn" id="toggle-all-visibility">
-                <i class='bx bx-low-vision'></i> Toggle All Public
+            <button class="view-btn" id="refresh-finalists">
+                <i class='bx bx-refresh'></i> Refresh
             </button>
         </div>
     </div>
 
+    <!-- Category Cards -->
+    <div class="card" style="margin-bottom: 24px;">
+        <h3 style="margin-bottom: 16px;">Categories</h3>
+        <div id="category-cards-container" class="category-cards-grid">
+            <!-- dynamically filled -->
+        </div>
+    </div>
+
+    <!-- Master Finalist Table -->
     <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3>Current Finalists</h3>
+            <span id="finalist-count-badge" class="status-badge" style="background: var(--jci-blue); color: white;">0</span>
+        </div>
         <div class="table-responsive">
-            <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="font-size: 11px; color: var(--text-muted); border-bottom: 2px solid var(--bg-slate);">
-                        <th style="padding: 12px;">CANDIDATE NAME</th>
+                        <th style="padding: 12px;">NOMINEE</th>
                         <th style="padding: 12px;">CATEGORY</th>
-                        <th style="padding: 12px;">STATUS</th>
-                        <th style="padding: 12px; text-align: center;">PUBLIC VISIBILITY</th>
-                        <th style="padding: 12px;">MORE DETAILS</th>
+                        <th style="padding: 12px;">VOTES</th>
+                        <th style="padding: 12px;">FLAGGED</th>
+                        <th style="padding: 12px;">ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody id="finalist-table-body">
-                    <tr>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <div style="font-weight: 600;">Osasere Idahosa</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">Ref: JCI-TOYP-26-001</div>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">Academic Excellence</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <span class="status-badge status-shortlisted">Shortlisted</span>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
-                            <label class="switch-ui">
-                                <input type="checkbox" class="visibility-toggle" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <button class="view-btn live-profile-trigger"><i class='bx bx-file-find'></i> View Profile</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <div style="font-weight: 600;">Efe Williams</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">Ref: JCI-TOYP-26-042</div>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-size: 13px;">Leadership</td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <span class="status-badge status-honouree">Honouree</span>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); text-align: center;">
-                            <label class="switch-ui">
-                                <input type="checkbox" class="visibility-toggle" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </td>
-                        <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
-                            <button class="view-btn live-profile-trigger"><i class='bx bx-file-find'></i> View Profile</button>
-                        </td>
-                    </tr>
+                    <tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">Loading finalists…</td></tr>
                 </tbody>
             </table>
         </div>
