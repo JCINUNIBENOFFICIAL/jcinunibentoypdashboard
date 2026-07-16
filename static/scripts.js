@@ -1051,34 +1051,48 @@ finalists.forEach(n => uniqueNames.add(n.nominee_name.trim()));
 document.getElementById('finalist-count-badge').textContent = uniqueNames.size;
     }
 
-    function openFinalistProfileModal(name, ids) {
-        const allRows = window.__ALL_NOMINATIONS__ || [];
-        // Get all nominations matching these IDs (should be all rows for that grouped name)
-        const records = allRows.filter(n => ids.includes(n.id));
+function openFinalistProfileModal(name, ids) {
+    const allRows = window.__ALL_NOMINATIONS__ || [];
+    // Get all nominations matching these IDs (should be all rows for that grouped name)
+    const records = allRows.filter(n => ids.includes(n.id));
 
-        if (records.length === 0) {
-            alert('No data found for this finalist.');
-            return;
+    if (records.length === 0) {
+        alert('No data found for this finalist.');
+        return;
+    }
+
+    // Aggregate unique emails, phones, categories
+    const emails = new Set();
+    const phones = new Set();
+    const categories = new Set();
+    records.forEach(r => {
+        if (r.nominee_email) emails.add(r.nominee_email);
+        if (r.whatsapp_contact) phones.add(r.whatsapp_contact);
+        if (r.category) categories.add(r.category);
+    });
+
+    // Aggregate achievements (reasons) – deduplicate and count occurrences
+    const achievementMap = new Map(); // key: normalized reason, value: { text: original, count: N }
+    records.forEach(r => {
+        const raw = (r.reason || '').trim();
+        if (raw === '') return;
+        const key = raw.toLowerCase().replace(/\s+/g, ' ').replace(/[^\w\s]/g, '');
+        if (achievementMap.has(key)) {
+            achievementMap.get(key).count++;
+        } else {
+            achievementMap.set(key, { text: raw, count: 1 });
         }
+    });
+    const achievements = Array.from(achievementMap.values());
 
-        // Aggregate unique emails, phones, categories
-        const emails = new Set();
-        const phones = new Set();
-        const categories = new Set();
-        records.forEach(r => {
-            if (r.nominee_email) emails.add(r.nominee_email);
-            if (r.whatsapp_contact) phones.add(r.whatsapp_contact);
-            if (r.category) categories.add(r.category);
-        });
+    const modal = document.getElementById('detailsModal');
+    document.getElementById('modal-title').textContent = name;
+    document.getElementById('modal-subtitle').textContent = 'Finalist Profile';
 
-        const modal = document.getElementById('detailsModal');
-        document.getElementById('modal-title').textContent = name;
-        document.getElementById('modal-subtitle').textContent = 'Finalist Profile';
+    // Use placeholder avatar for now (later you'll upload a picture)
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=100&background=0097D7&color=fff`;
 
-        // Use placeholder avatar for now (later you'll upload a picture)
-        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=100&background=0097D7&color=fff`;
-
-        document.getElementById('modal-data').innerHTML = `
+    let html = `
         <div style="display: flex; flex-direction: column; gap: 20px;">
             <div style="display: flex; align-items: center; gap: 16px;">
                 <img src="${avatarUrl}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
@@ -1097,11 +1111,15 @@ document.getElementById('finalist-count-badge').textContent = uniqueNames.size;
             </div>
 
             <div>
-                <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted);">Achievements</h4>
-                <div style="background: var(--bg-slate); padding: 12px; border-radius: 8px; max-height: 150px; overflow-y: auto;">
-                    ${records.map(r => `
-                        <p style="margin-bottom: 8px; font-size: 13px;">${r.reason || 'No write-up'}</p>
-                    `).join('<hr style="border-color: var(--border-color);">')}
+                <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted);">Achievements & Write‑ups</h4>
+                <div style="background: var(--bg-slate); padding: 12px; border-radius: 8px; max-height: 250px; overflow-y: auto;">
+                    ${achievements.length === 0 ? '<p style="color:var(--text-muted);">No achievement descriptions provided.</p>' : ''}
+                    ${achievements.map(a => `
+                        <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
+                            <p style="font-size: 13px; white-space: pre-wrap; margin: 0;">${a.text}</p>
+                            ${a.count > 1 ? `<span style="font-size:11px; color:var(--text-muted);">(mentioned in ${a.count} nominations)</span>` : ''}
+                        </div>
+                    `).join('')}
                 </div>
             </div>
 
@@ -1113,8 +1131,112 @@ document.getElementById('finalist-count-badge').textContent = uniqueNames.size;
             </div>
         </div>
     `;
-        modal.style.display = 'flex';
+
+    document.getElementById('modal-data').innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+function openEditFinalistModal(name, ids) {
+    const allRows = window.__ALL_NOMINATIONS__ || [];
+    const records = allRows.filter(n => ids.includes(n.id));
+
+    if (records.length === 0) {
+        alert('No data found for this finalist.');
+        return;
     }
+
+    // Gather current data
+    const emails = new Set();
+    const phones = new Set();
+    records.forEach(r => {
+        if (r.nominee_email) emails.add(r.nominee_email.trim());
+        if (r.whatsapp_contact) phones.add(r.whatsapp_contact.trim());
+    });
+
+    // Build editable list HTML
+    const buildList = (items, prefix) => {
+        if (items.length === 0) return '<p style="color:var(--text-muted);">None</p>';
+        return items.map(item => `
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <input type="text" value="${item}" style="flex:1; padding:6px; border:1px solid var(--border-color); border-radius:4px;" data-prefix="${prefix}">
+                <button class="view-btn remove-item-btn" data-prefix="${prefix}" data-value="${item}" style="color:#ef4444; font-size:12px;">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+        `).join('');
+    };
+
+    let html = `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            <div>
+                <label style="font-weight:600; display:block; margin-bottom:4px;">Full Name</label>
+                <input type="text" id="edit-name" value="${name}" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px;">
+            </div>
+
+            <div>
+                <label style="font-weight:600; display:block; margin-bottom:4px;">Emails</label>
+                <div id="emails-container">
+                    ${buildList([...emails], 'email')}
+                </div>
+                <button class="view-btn add-item-btn" data-prefix="email" style="margin-top:6px;">
+                    <i class='bx bx-plus'></i> Add email
+                </button>
+            </div>
+
+            <div>
+                <label style="font-weight:600; display:block; margin-bottom:4px;">WhatsApp Numbers</label>
+                <div id="phones-container">
+                    ${buildList([...phones], 'phone')}
+                </div>
+                <button class="view-btn add-item-btn" data-prefix="phone" style="margin-top:6px;">
+                    <i class='bx bx-plus'></i> Add phone
+                </button>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button class="btn-secondary close-modal">Cancel</button>
+                <button class="btn-primary" id="save-finalist-details-btn" data-ids="${ids.join(',')}">
+                    <i class='bx bx-save'></i> Save Changes
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('modal-title').textContent = `Edit Details: ${name}`;
+    document.getElementById('modal-subtitle').textContent = 'Update contact information';
+    document.getElementById('modal-data').innerHTML = html;
+    document.getElementById('detailsModal').style.display = 'flex';
+
+    // Attach event listeners for add/remove buttons (inside modal)
+    document.querySelectorAll('.remove-item-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            btn.parentElement.remove();
+        };
+    });
+
+    document.querySelectorAll('.add-item-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const prefix = btn.getAttribute('data-prefix');
+            const containerId = prefix === 'email' ? 'emails-container' : 'phones-container';
+            const container = document.getElementById(containerId);
+            const newInput = document.createElement('div');
+            newInput.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:6px;';
+            newInput.innerHTML = `
+                <input type="text" placeholder="Add new ${prefix}" style="flex:1; padding:6px; border:1px solid var(--border-color); border-radius:4px;" data-prefix="${prefix}">
+                <button class="view-btn remove-item-btn" style="color:#ef4444; font-size:12px;">
+                    <i class='bx bx-x'></i>
+                </button>
+            `;
+            container.appendChild(newInput);
+            // Attach remove handler to the new button
+            newInput.querySelector('.remove-item-btn').onclick = function() {
+                newInput.remove();
+            };
+        };
+    });
+}
 
 
     async function allCategoriesHaveFinalists() {
@@ -1465,62 +1587,103 @@ async function showMergeSuggestions() {
 
     const uniqueNames = Array.from(nameMap.values());
 
-    // --- 2. Fuse.js fuzzy matching to build groups ---
+    // --- 2. Build union-find for all similar pairs ---
+    // Map each name display to its index
+    const indexMap = new Map();
+    uniqueNames.forEach((item, idx) => indexMap.set(item.display, idx));
+
+    // Union-Find helpers
+    const parent = Array.from({ length: uniqueNames.length }, (_, i) => i);
+    function find(x) {
+        while (parent[x] !== x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    }
+    function union(a, b) {
+        const ra = find(a), rb = find(b);
+        if (ra !== rb) parent[rb] = ra;
+    }
+
+    // Fuse.js to find all similar pairs
     const fuse = new Fuse(uniqueNames, {
         keys: ['display'],
-        threshold: 0.4,
+        threshold: 0.5,          // slightly looser for better recall
         includeScore: true
     });
 
-    const groups = [];         // { primary, variants[] }
-    const processed = new Set();
-
-    uniqueNames.forEach(nameObj => {
-        if (processed.has(nameObj.display.toLowerCase())) return;
-
-        const matches = fuse.search(nameObj.display);
-        const similar = [];
-
-        matches.forEach(match => {
-            const other = match.item;
+    // For each name, find all similar names and union them
+    for (let i = 0; i < uniqueNames.length; i++) {
+        const nameObj = uniqueNames[i];
+        const results = fuse.search(nameObj.display);
+        results.forEach(result => {
+            const other = result.item;
             if (other.display === nameObj.display) return;
-            if (match.score <= 0.4 && !processed.has(other.display.toLowerCase())) {
-                similar.push(other);
-                processed.add(other.display.toLowerCase());
+            const j = indexMap.get(other.display);
+            if (j !== undefined && result.score <= 0.5) {
+                union(i, j);
             }
         });
+    }
 
-        if (similar.length > 0) {
-            // Determine primary (highest count)
-            let primary = nameObj;
-            similar.forEach(v => {
-                if (v.count > primary.count) primary = v;
+    // --- 3. Build groups from connected components ---
+    const groupsMap = new Map();  // root -> { names: [], ids: [], totalCount: 0 }
+    for (let i = 0; i < uniqueNames.length; i++) {
+        const root = find(i);
+        if (!groupsMap.has(root)) {
+            groupsMap.set(root, { names: [], ids: [], totalCount: 0 });
+        }
+        const group = groupsMap.get(root);
+        const item = uniqueNames[i];
+        group.names.push(item);
+        group.ids.push(...item.ids);
+        group.totalCount += item.count;
+    }
+
+    // Convert to array, keep only groups with at least 2 different names
+    let groups = [];
+    groupsMap.forEach((group, root) => {
+        if (group.names.length > 1) {
+            // Determine primary: the name with highest count
+            group.names.sort((a, b) => b.count - a.count);
+            groups.push({
+                primary: group.names[0],
+                variants: group.names.slice(1),
+                totalCount: group.totalCount,
+                allIds: group.ids
             });
-            // Ensure primary is not duplicated in variants
-            const variants = similar.filter(v => v.display !== primary.display);
-            groups.push({ primary, variants });
-            processed.add(primary.display.toLowerCase());
         }
     });
 
-    // Store for later use in detail view
+    // Store for detail view
     window.__mergeGroups = groups;
 
-    // --- 3. Build main list HTML ---
+    // --- 4. Build main list HTML ---
     let html = '<div style="max-height: 400px; overflow-y: auto;">';
+
+    html += `
+    <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+        <button class="view-btn refresh-groups-btn" style="font-size:12px;">
+            <i class='bx bx-refresh'></i> Refresh Groups
+        </button>
+        <button class="view-btn manual-merge-btn" style="font-size:12px; margin-left:8px;">
+    <i class='bx bx-git-merge'></i> Manual Merge
+</button>
+    </div>`;
 
     if (groups.length === 0) {
         html += '<p>No potential duplicates found.</p>';
     } else {
         groups.forEach((group, index) => {
             const variantCount = group.variants.length;
-            const variantList = group.variants.map(v => `${v.display} (${v.count})`).join(', ');
+            const variantPreview = group.variants.map(v => `${v.display} (${v.count})`).join(', ');
             html += `
             <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <strong>${group.primary.display}</strong> (${group.primary.count} entries)
-                        <br/><small style="color:var(--text-muted);">${variantCount} similar name(s): ${variantList}</small>
+                        <br/><small style="color:var(--text-muted);">${variantCount} similar name(s): ${variantPreview}</small>
                     </div>
                     <button class="view-btn open-group-btn" data-group="${index}">
                         <i class='bx bx-expand-vertical'></i> Open
@@ -1531,7 +1694,7 @@ async function showMergeSuggestions() {
     }
     html += '</div>';
 
-    // --- 4. Render logs ---
+    // --- 5. Render logs (unchanged) ---
     const logs = window.__mergeLogs || [];
     html += '<div id="merge-logs" style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:12px; max-height:150px; overflow-y:auto; background:#f9fafb; border-radius:6px; padding:8px;">';
     if (logs.length === 0) {
@@ -1547,7 +1710,7 @@ async function showMergeSuggestions() {
     // Close button
     html += '<div style="margin-top:20px; text-align:right;"><button class="btn-secondary close-modal">Close</button></div>';
 
-    // --- 5. Set modal content ---
+    // --- 6. Set modal content ---
     const modal = document.getElementById('detailsModal');
     document.getElementById('modal-title').textContent = 'Merge Suggestions';
     document.getElementById('modal-subtitle').textContent = 'Groups of similar names';
@@ -1555,12 +1718,60 @@ async function showMergeSuggestions() {
     modal.style.display = 'flex';
 }
 
+function openManualMergeModal() {
+    const allRows = window.__ALL_NOMINATIONS__ || [];
+    if (!allRows.length) {
+        alert('No data loaded.');
+        return;
+    }
+
+    // Get unique names (display version)
+    const uniqueNames = [...new Set(allRows.map(n => n.nominee_name.trim()))].sort();
+
+    let html = `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            <p>Select the name to <strong>replace</strong> (source) and the correct name (target).</p>
+
+            <div>
+                <label style="font-weight:600; display:block; margin-bottom:4px;">Source name (to be replaced)</label>
+                <input type="text" id="source-name-input" list="source-list" placeholder="Type or select a name" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px;">
+                <datalist id="source-list">
+                    ${uniqueNames.map(n => `<option value="${n}">`).join('')}
+                </datalist>
+            </div>
+
+            <div>
+                <label style="font-weight:600; display:block; margin-bottom:4px;">Target name (correct spelling)</label>
+                <input type="text" id="target-name-input" list="target-list" placeholder="Type or select a name" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px;">
+                <datalist id="target-list">
+                    ${uniqueNames.map(n => `<option value="${n}">`).join('')}
+                </datalist>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button class="btn-secondary back-to-groups-btn">Cancel</button>
+                <button class="btn-primary" id="execute-manual-merge-btn">
+                    <i class='bx bx-git-merge'></i> Merge
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('modal-title').textContent = 'Manual Merge';
+    document.getElementById('modal-subtitle').textContent = 'Merge one name into another';
+    document.getElementById('modal-data').innerHTML = html;
+    document.getElementById('detailsModal').style.display = 'flex';
+}
+
 function showMergeGroupDetail(groupIndex) {
     const groups = window.__mergeGroups || [];
     const group = groups[groupIndex];
     if (!group) return;
 
-    const allCandidates = [group.primary, ...group.variants];
+    // Ensure we work on the current group data (variants may have been removed)
+    const currentGroup = group;
+    const allCandidates = [currentGroup.primary, ...currentGroup.variants];
+
     let html = `
         <div style="margin-bottom:16px;">
             <button class="view-btn back-to-groups-btn">
@@ -1572,15 +1783,23 @@ function showMergeGroupDetail(groupIndex) {
     `;
 
     allCandidates.forEach((candidate, idx) => {
-        const checked = idx === 0 ? 'checked' : '';
+        const isPrimary = idx === 0;
+        const checked = isPrimary ? 'checked' : '';
         html += `
-            <label style="display:flex; align-items:center; padding:8px; border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; cursor:pointer;">
-                <input type="radio" name="selected-name" value="${candidate.display}" data-ids="${candidate.ids.join(',')}" ${checked} style="margin-right:8px;">
-                <div>
-                    <strong>${candidate.display}</strong>
-                    <span style="font-size:12px; color:var(--text-muted);"> (${candidate.count} entries)</span>
-                </div>
-            </label>
+            <div style="display:flex; align-items:center; padding:8px; border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; ${isPrimary ? 'background: #f0f9ff;' : ''}">
+                <label style="display:flex; align-items:center; flex:1; cursor:pointer; margin:0;">
+                    <input type="radio" name="selected-name" value="${candidate.display}" data-ids="${candidate.ids.join(',')}" ${checked} style="margin-right:8px;">
+                    <div>
+                        <strong>${candidate.display}</strong>
+                        <span style="font-size:12px; color:var(--text-muted);"> (${candidate.count} entries)</span>
+                        ${isPrimary ? '<span style="font-size:10px; background:var(--jci-blue); color:#fff; padding:1px 6px; border-radius:4px; margin-left:6px;">main</span>' : ''}
+                    </div>
+                </label>
+                ${!isPrimary ? `
+                <button class="view-btn remove-variant-btn" data-group="${groupIndex}" data-name="${candidate.display}" style="color:#ef4444; font-size:11px; padding:2px 8px; margin-left:8px;" title="Remove this variant from the group">
+                    <i class='bx bx-x'></i> Remove
+                </button>` : ''}
+            </div>
         `;
     });
 
@@ -1588,13 +1807,14 @@ function showMergeGroupDetail(groupIndex) {
         </div>
         <div style="display:flex; justify-content:flex-end; gap:10px;">
             <button class="btn-secondary close-modal">Cancel</button>
+            ${currentGroup.variants.length > 0 ? `
             <button class="btn-primary merge-group-btn" data-group="${groupIndex}">
                 <i class='bx bx-git-merge'></i> Merge all into selected name
-            </button>
+            </button>` : '<span style="color:var(--text-muted);">No variants left to merge.</span>'}
         </div>
     `;
 
-    document.getElementById('modal-subtitle').textContent = `Editing: ${group.primary.display}`;
+    document.getElementById('modal-subtitle').textContent = `Editing: ${currentGroup.primary.display}`;
     document.getElementById('modal-data').innerHTML = html;
 }
 
@@ -1633,6 +1853,93 @@ function showMergeGroupDetail(groupIndex) {
                 return;
             }
         }
+
+        // ---- Edit Finalist Details ----
+if (e.target.id === 'edit-finalist-profile-btn') {
+    const name = e.target.getAttribute('data-name');
+    const ids = e.target.getAttribute('data-ids').split(',').map(Number);
+    openEditFinalistModal(name, ids);
+    return;
+}
+
+// ---- Save Finalist Details ----
+if (e.target.id === 'save-finalist-details-btn') {
+    const btn = e.target;
+    const ids = btn.getAttribute('data-ids').split(',').map(Number);
+    const newName = document.getElementById('edit-name').value.trim();
+
+    // Collect emails
+    const emailInputs = document.querySelectorAll('#emails-container input[data-prefix="email"]');
+    const emails = [];
+    emailInputs.forEach(inp => {
+        const val = inp.value.trim();
+        if (val) emails.push(val);
+    });
+
+    // Collect phones
+    const phoneInputs = document.querySelectorAll('#phones-container input[data-prefix="phone"]');
+    const phones = [];
+    phoneInputs.forEach(inp => {
+        const val = inp.value.trim();
+        if (val) phones.push(val);
+    });
+
+    if (!newName) {
+        alert('Name cannot be empty.');
+        return;
+    }
+
+    if (!confirm('Save changes? This will update all nomination records for this person.')) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving...';
+
+    try {
+        // Update name for all rows
+        const { error: nameErr } = await supabase
+            .from('nominations')
+            .update({ nominee_name: newName })
+            .in('id', ids);
+        if (nameErr) throw nameErr;
+
+        // Update emails – set the first email as the primary, and optionally save others
+        // For simplicity, we'll set the first email to all rows, and append other emails only if we have a field for them.
+        // Since your nominations table likely has one nominee_email, we'll set it to the first email (or empty if none).
+        const primaryEmail = emails.length > 0 ? emails[0] : null;
+        const primaryPhone = phones.length > 0 ? phones[0] : null;
+
+        // Update all rows with the chosen primary email and phone
+        const updatePayload = {};
+        if (primaryEmail !== null) updatePayload.nominee_email = primaryEmail;
+        if (primaryPhone !== null) updatePayload.whatsapp_contact = primaryPhone;
+
+        if (Object.keys(updatePayload).length > 0) {
+            const { error: contactErr } = await supabase
+                .from('nominations')
+                .update(updatePayload)
+                .in('id', ids);
+            if (contactErr) throw contactErr;
+        }
+
+        // If there are additional emails/phones, we could store them in a new field,
+        // but for now we only update the primary fields.
+
+        if (typeof showToast === 'function') showToast('Details updated successfully!');
+        document.getElementById('detailsModal').style.display = 'none';
+
+        // Refresh the finalist table
+        if (typeof loadFinalists === 'function') await loadFinalists();
+        if (typeof loadNominations === 'function') await loadNominations().catch(e => console.error(e));
+
+    } catch (err) {
+        console.error(err);
+        alert('Failed to update details: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
+    }
+    return;
+}
 
         // ----- Open grouped submissions list -----
         if (e.target.classList.contains('view-group-trigger')) {
@@ -1710,6 +2017,96 @@ if (e.target.classList.contains('view-nominee-finalist') || e.target.closest('.v
             showMergeSuggestions();
             return;
         }
+
+        // ---- Open Manual Merge modal ----
+if (e.target.classList.contains('manual-merge-btn') || e.target.closest('.manual-merge-btn')) {
+    openManualMergeModal();
+    return;
+}
+
+// ---- Execute manual merge ----
+if (e.target.id === 'execute-manual-merge-btn') {
+    const sourceInput = document.getElementById('source-name-input');
+    const targetInput = document.getElementById('target-name-input');
+    if (!sourceInput || !targetInput) return;
+
+    const source = sourceInput.value.trim();
+    const target = targetInput.value.trim();
+
+    if (!source || !target) {
+        alert('Please fill in both names.');
+        return;
+    }
+    if (source === target) {
+        alert('Source and target are the same.');
+        return;
+    }
+
+    if (!confirm(`Merge ALL entries from "${source}" into "${target}"? This cannot be undone.`)) return;
+
+    const btn = document.getElementById('execute-manual-merge-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Merging...';
+
+    try {
+        const { error } = await supabase
+            .from('nominations')
+            .update({ nominee_name: target })
+            .eq('nominee_name', source);
+
+        if (error) throw error;
+
+        window.__mergeLogs.push({
+            success: true,
+            message: `Manual merge: "${source}" → "${target}"`
+        });
+        if (typeof showToast === 'function') showToast(`Merged "${source}" → "${target}"`);
+
+    } catch (err) {
+        console.error(err);
+        window.__mergeLogs.push({
+            success: false,
+            message: `Manual merge failed: ${err.message}`
+        });
+        if (typeof showToast === 'function') showToast(`Merge failed`, false);
+    }
+
+    await loadNominations().catch(e => console.error(e));
+    showMergeSuggestions();  // return to updated list
+    return;
+}
+
+
+        // ---- Remove a variant from a merge group ----
+if (e.target.classList.contains('remove-variant-btn') || e.target.closest('.remove-variant-btn')) {
+    const btn = e.target.closest('.remove-variant-btn');
+    const groupIndex = parseInt(btn.getAttribute('data-group'), 10);
+    const nameToRemove = btn.getAttribute('data-name');
+    const groups = window.__mergeGroups || [];
+    const group = groups[groupIndex];
+    if (!group) return;
+
+    // Remove the variant from the group
+    group.variants = group.variants.filter(v => v.display !== nameToRemove);
+
+    // If no variants left, optionally remove the whole group from the list
+    if (group.variants.length === 0) {
+        // You could remove the group entirely:
+        // groups.splice(groupIndex, 1);
+        // But we'll just let the detail view show "No variants left" for now.
+    }
+
+    // Refresh the detail view
+    showMergeGroupDetail(groupIndex);
+    return;
+}
+
+if (e.target.classList.contains('refresh-groups-btn') || e.target.closest('.refresh-groups-btn')) {
+    // Re-run the merge suggestions algorithm with fresh data
+    await loadNominations().catch(e => console.error(e));  // ensure latest data
+    await showMergeSuggestions();
+    return;
+}
 
         // ---- FINALIZE & NOTIFY BUTTON ----
         if (e.target.id === 'finalize-notify-btn') {
