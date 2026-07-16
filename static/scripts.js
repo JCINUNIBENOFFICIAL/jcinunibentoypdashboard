@@ -356,26 +356,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadOverview();
 
     // Navigation Switcher Logic
-    navItems.forEach(item => {
-        item.addEventListener('click', async function (e) {
-            if (this.classList.contains('logout')) return;
-            e.preventDefault();
+navItems.forEach(item => {
+    item.addEventListener('click', async function (e) {
+        if (this.classList.contains('logout')) return;
+        e.preventDefault();
 
-            navItems.forEach(nav => nav.classList.remove('active'));
-            this.classList.add('active');
+        navItems.forEach(nav => nav.classList.remove('active'));
+        this.classList.add('active');
 
-            const viewKey = this.getAttribute('data-view');
-            const viewMarkup = await getViewMarkup(viewKey);
-            if (viewMarkup) {
-                contentArea.innerHTML = viewMarkup;
-                applySecurityRoles();
-                if (viewKey === 'overview') await loadOverview();
-                if (viewKey === 'nominations') await loadNominations();
-                if (viewKey === 'categories') await loadCategories();
-                if (viewKey === 'finalists') await loadFinalists();
-            }
-        });
+        const viewKey = this.getAttribute('data-view');
+        const viewMarkup = await getViewMarkup(viewKey);
+        if (viewMarkup) {
+            contentArea.innerHTML = viewMarkup;
+            applySecurityRoles();
+            if (viewKey === 'overview') await loadOverview();
+            if (viewKey === 'nominations') await loadNominations();
+            if (viewKey === 'categories') await loadCategories();
+            if (viewKey === 'finalists') await loadFinalists();
+            if (viewKey === 'voting') await loadVoting();   // ✅ now after viewKey is defined
+        }
     });
+});
 
     // when cards are clicked in overview, navigate to matching view
     document.addEventListener('click', (e) => {
@@ -815,6 +816,135 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Refresh button
         document.getElementById('refresh-finalists')?.addEventListener('click', loadFinalists);
     }
+
+async function loadVoting() {
+    try {
+        // 1. Fetch settings
+        const { data: settings, error: setErr } = await supabase
+            .from('settings')
+            .select('key, value');
+
+        if (setErr) {
+            console.error('Settings fetch error:', setErr);
+            document.getElementById('voting-banner-text').textContent = '⚠️ Error loading settings. Check RLS policies.';
+            return;
+        }
+
+        // ... rest of your existing code for settings, banner, etc.
+
+        // 2. Fetch stats with error handling
+        let totalVotes = 0, todayVotes = 0, uniqueVoters = 0;
+        try {
+            const { count, error } = await supabase.from('votes').select('*', { count: 'exact', head: true });
+            if (error) throw error;
+            totalVotes = count || 0;
+        } catch (e) { console.error('Total votes error:', e); }
+
+        try {
+            const { count, error } = await supabase.from('votes')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', new Date().toISOString().slice(0,10));
+            if (error) throw error;
+            todayVotes = count || 0;
+        } catch (e) { console.error('Today votes error:', e); }
+
+        try {
+            const { data, error } = await supabase.rpc('count_unique_voters');
+            if (error) throw error;
+            uniqueVoters = data || 0;
+        } catch (e) { console.error('Unique voters error:', e); }
+
+        document.getElementById('total-votes').textContent = totalVotes;
+        document.getElementById('votes-today').textContent = todayVotes;
+        document.getElementById('unique-voters').textContent = uniqueVoters;
+
+        // 3. Per‑nominee counts with fallback
+        const nomineeTbody = document.getElementById('nominee-votes-tbody');
+        try {
+            const { data: nomineeCounts, error } = await supabase.rpc('get_nominee_vote_counts');
+            if (error) throw error;
+            nomineeTbody.innerHTML = '';
+            if (nomineeCounts && nomineeCounts.length) {
+                nomineeCounts.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="padding:10px;">${row.nominee_name}</td>
+                        <td style="padding:10px;">${row.category}</td>
+                        <td style="padding:10px;text-align:center;font-weight:600;">${row.vote_count}</td>
+                    `;
+                    nomineeTbody.appendChild(tr);
+                });
+            } else {
+                nomineeTbody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;color:var(--text-muted);">No votes yet.</td></tr>';
+            }
+        } catch (e) {
+            console.error('Nominee counts error:', e);
+            nomineeTbody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;color:red;">Could not load counts. Check RPC permissions.</td></tr>';
+        }
+
+        // 4. Recent votes with fallback
+        const recentTbody = document.getElementById('recent-votes-tbody');
+        try {
+            const { data: recentVotes, error } = await supabase
+                .from('vote_details')
+                .select('voter_email, category, nominee_name:nomination_id(nominee_name), created_at')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            recentTbody.innerHTML = '';
+            if (recentVotes && recentVotes.length) {
+                recentVotes.forEach(v => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="padding:10px;">${new Date(v.created_at).toLocaleString()}</td>
+                        <td style="padding:10px;">${v.voter_email}</td>
+                        <td style="padding:10px;">${v.category}</td>
+                        <td style="padding:10px;">${v.nominee_name}</td>
+                    `;
+                    recentTbody.appendChild(tr);
+                });
+            } else {
+                recentTbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;color:var(--text-muted);">No recent votes.</td></tr>';
+            }
+        } catch (e) {
+            console.error('Recent votes error:', e);
+            recentTbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;color:red;">Error loading activity.</td></tr>';
+        }
+
+        // 5. Re‑attach button handlers (they already exist, but ensure they are not overwritten multiple times)
+        // Remove any duplicate listeners by using `onclick` assignment directly (already done)
+        // The rest of your handlers remain unchanged.
+
+    } catch (error) {
+        console.error('loadVoting fatal error:', error);
+        // Display a generic error banner
+        const bannerText = document.getElementById('voting-banner-text');
+        if (bannerText) bannerText.textContent = '❌ Failed to load voting data. Check console for details.';
+    }
+}
+
+// Helper SQL functions (run in SQL Editor)
+/*
+CREATE OR REPLACE FUNCTION count_unique_voters()
+RETURNS integer AS $$
+BEGIN
+    RETURN (SELECT COUNT(DISTINCT voter_id) FROM votes);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_nominee_vote_counts()
+RETURNS TABLE(nominee_name TEXT, category TEXT, vote_count BIGINT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT n.nominee_name, v.category, COUNT(*)::BIGINT
+    FROM votes v
+    JOIN nominations n ON v.nomination_id = n.id
+    GROUP BY n.nominee_name, v.category
+    ORDER BY v.category, COUNT(*) DESC;
+END;
+$$ LANGUAGE plpgsql;
+*/
 
     async function openWorkflowModal(categoryName) {
         // 1. Fetch all nominations for this category

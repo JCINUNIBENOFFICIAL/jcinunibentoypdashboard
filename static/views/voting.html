@@ -1,247 +1,123 @@
-<!-- Voting Operations Dashboard -->
 <template>
-
     <div class="view-header">
         <div>
             <h1>Voting Operations</h1>
-            <p>Manage the public voting process, monitor live statistics and control the election.</p>
+            <p>Control the public voting window and monitor live statistics.</p>
         </div>
-
         <div class="header-actions">
-            <span class="status-badge status-live" id="v-status">
-                <i class='bx bxs-circle'></i>
-                Voting Closed
+            <span class="status-badge" id="v-status">
+                <i class='bx bxs-circle'></i> Voting Closed
             </span>
         </div>
     </div>
 
-    <!-- ========================= -->
-    <!-- Voting Status Banner -->
-    <!-- ========================= -->
-
-    <div id="voting-banner" class="card" style="margin-bottom:25px;border-left:5px solid #ef4444;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;">
-
-            <div>
-                <h3 style="margin-bottom:8px;">Voting Status</h3>
-                <p style="color:var(--text-muted);">
-                    Public voting is currently disabled. Participants cannot vote until voting is opened.
-                </p>
-            </div>
-
-            <button class="btn-primary" id="toggle-voting">
-                <i class='bx bx-power-off'></i>
-                Open Voting
+    <!-- Admin Controls (moved to top) -->
+    <div class="card" style="margin-bottom:20px;">
+        <h3 style="margin-bottom:16px;">Admin Controls</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <button class="btn-primary" id="open-voting-btn">
+                <i class='bx bx-play-circle'></i> Open Voting
             </button>
-
+            <button class="btn-warning" id="close-voting-btn">
+                <i class='bx bx-pause-circle'></i> Close Voting
+            </button>
+            <button class="view-btn" id="export-votes-btn">
+                <i class='bx bx-download'></i> Export Votes
+            </button>
+            <button class="view-btn" id="refresh-stats-btn">
+                <i class='bx bx-sync'></i> Refresh Statistics
+            </button>
         </div>
     </div>
 
-    <!-- ========================= -->
+    <!-- Voting Banner -->
+    <div id="voting-banner" class="card" style="margin-bottom:25px;border-left:5px solid #ef4444;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;">
+            <div>
+                <h3 style="margin-bottom:8px;">Voting Status</h3>
+                <p id="voting-banner-text" style="color:var(--text-muted);">Public voting is currently disabled.</p>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <input type="datetime-local" id="close-time-input" style="padding:6px;border:1px solid var(--border-color);border-radius:6px;">
+                <button class="view-btn" id="set-close-time-btn">Set Close Time</button>
+                <button class="btn-primary" id="toggle-voting">
+                    <i class='bx bx-power-off'></i> Open Voting
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Live Stats -->
-    <!-- ========================= -->
-
     <div class="stats-grid">
-
+        <div class="stat-card">
+            <div class="stat-info">
+                <span>Total Votes</span>
+                <h2 id="total-votes">0</h2>
+            </div>
+            <i class='bx bx-check-shield'></i>
+        </div>
         <div class="stat-card">
             <div class="stat-info">
                 <span>Votes Today</span>
                 <h2 id="votes-today">0</h2>
             </div>
-
             <i class='bx bx-bar-chart-alt'></i>
         </div>
-
         <div class="stat-card">
             <div class="stat-info">
-                <span>Total Votes</span>
-                <h2 id="live-vote-count">0</h2>
+                <span>Unique Voters</span>
+                <h2 id="unique-voters">0</h2>
             </div>
-
-            <i class='bx bx-check-shield'></i>
+            <i class='bx bx-user-voice'></i>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-info">
-                <span>Live Visitors</span>
-                <h2 id="live-visitors">0</h2>
-            </div>
-
-            <i class='bx bx-pulse'></i>
-        </div>
-
         <div class="stat-card">
             <div class="stat-info">
                 <span>Time Remaining</span>
-                <h2 id="voting-timer">00:00:00</h2>
+                <h2 id="voting-timer">--</h2>
             </div>
-
             <i class='bx bx-timer'></i>
         </div>
-
     </div>
 
-    <!-- ========================= -->
-    <!-- Operations -->
-    <!-- ========================= -->
-
-    <div class="card" style="margin-top:30px;">
-
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;flex-wrap:wrap;gap:20px;">
-
-            <div>
-                <h3>Voting Operations</h3>
-                <p style="color:var(--text-muted);font-size:13px;">
-                    Execute voting actions and system maintenance.
-                </p>
-            </div>
-
-        </div>
-
-        <div style="
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-            gap:20px;
-        ">
-
-            <button class="btn-primary" id="start-v">
-                <i class='bx bx-play-circle'></i>
-                Open Voting
-            </button>
-
-            <button class="btn-warning" id="pause-v">
-                <i class='bx bx-pause-circle'></i>
-                Pause Voting
-            </button>
-
-            <button class="btn-reject" id="stop-v">
-                <i class='bx bx-stop-circle'></i>
-                Close Voting
-            </button>
-
-            <button class="view-btn" id="reset-votes">
-                <i class='bx bx-refresh'></i>
-                Reset Voting
-            </button>
-
-            <button class="view-btn" id="export-votes">
-                <i class='bx bx-download'></i>
-                Export Votes
-            </button>
-
-            <button class="view-btn" id="refresh-stats">
-                <i class='bx bx-sync'></i>
-                Refresh Statistics
-            </button>
-
-        </div>
-
-    </div>
-
-    <!-- ========================= -->
-    <!-- Live Activity -->
-    <!-- ========================= -->
-
-    <div class="card" style="margin-top:30px;">
-
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <h3>Recent Voting Activity</h3>
-
-            <span style="font-size:13px;color:var(--text-muted);">
-                Live Updates
-            </span>
-        </div>
-
+    <!-- Per‑Nominee Counts -->
+    <div class="card" style="margin-top:20px;">
+        <h3 style="margin-bottom:16px;">Vote Counts by Nominee</h3>
         <div class="table-responsive">
-
             <table style="width:100%;border-collapse:collapse;">
-
                 <thead>
-
-                    <tr>
-
-                        <th style="padding:12px;">TIME</th>
-                        <th style="padding:12px;">ACTION</th>
-                        <th style="padding:12px;">CATEGORY</th>
-                        <th style="padding:12px;">IP ADDRESS</th>
-                        <th style="padding:12px;">STATUS</th>
-
+                    <tr style="font-size:11px;color:var(--text-muted);border-bottom:2px solid var(--bg-slate);">
+                        <th style="padding:12px;">Nominee</th>
+                        <th style="padding:12px;">Category</th>
+                        <th style="padding:12px;text-align:center;">Votes</th>
                     </tr>
-
                 </thead>
-
-                <tbody id="voting-activity-body">
-
-                    <tr class="loading-row">
-
-                        <td colspan="5" style="padding:25px;text-align:center;color:var(--text-muted);">
-                            Loading voting activity...
-                        </td>
-
-                    </tr>
-
+                <tbody id="nominee-votes-tbody">
+                    <tr><td colspan="3" style="padding:15px;text-align:center;color:var(--text-muted);">Loading…</td></tr>
                 </tbody>
-
             </table>
-
         </div>
-
     </div>
 
-    <!-- ========================= -->
-    <!-- Export & Maintenance -->
-    <!-- ========================= -->
-
-    <div class="card" style="margin-top:30px;">
-
-        <h3 style="margin-bottom:20px;">Maintenance & Reports</h3>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;">
-
-            <div class="mini-card">
-
-                <h4>Export Results</h4>
-
-                <p>
-                    Download certified voting records for audit purposes.
-                </p>
-
-                <button class="btn-primary" id="download-report">
-                    Export Results
-                </button>
-
-            </div>
-
-            <div class="mini-card">
-
-                <h4>Voting Integrity</h4>
-
-                <p>
-                    Run duplicate vote detection and fraud checks.
-                </p>
-
-                <button class="view-btn" id="audit-votes">
-                    Run Audit
-                </button>
-
-            </div>
-
-            <div class="mini-card">
-
-                <h4>Database Sync</h4>
-
-                <p>
-                    Synchronize live voting data with Supabase.
-                </p>
-
-                <button class="view-btn" id="sync-votes">
-                    Sync Now
-                </button>
-
-            </div>
-
+    <!-- Recent Activity -->
+    <div class="card" style="margin-top:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3>Recent Voting Activity</h3>
+            <span style="font-size:13px;color:var(--text-muted);">Latest 50 votes</span>
         </div>
-
+        <div class="table-responsive">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="font-size:11px;color:var(--text-muted);border-bottom:2px solid var(--bg-slate);">
+                        <th style="padding:12px;">Time</th>
+                        <th style="padding:12px;">Voter Email</th>
+                        <th style="padding:12px;">Category</th>
+                        <th style="padding:12px;">Nominee</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-votes-tbody">
+                    <tr><td colspan="4" style="padding:15px;text-align:center;color:var(--text-muted);">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-
 </template>
