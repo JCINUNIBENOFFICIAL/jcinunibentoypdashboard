@@ -1519,6 +1519,274 @@ function openEditFinalistModal(name, ids) {
     }
 }
 
+// ==============================================
+// INVITATION FUNCTIONS
+// ==============================================
+
+async function sendInvitationToNominee(nomineeEmail, nomineeName, category) {
+    console.log('📨 Sending invitation to:', nomineeEmail);
+    
+    try {
+        // Check if user already exists in auth
+        const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+        
+        let userExists = false;
+        if (!listError && users) {
+            userExists = users.some(u => u.email === nomineeEmail);
+        }
+
+        if (userExists) {
+            // User already has an account - send password reset instead
+            const { data, error } = await supabase.auth.resetPasswordForEmail(
+                nomineeEmail,
+                {
+                    redirectTo: window.location.origin + '/set-password-profile-nominee.html'
+                }
+            );
+            
+            if (error) throw error;
+            console.log('✅ Password reset sent to existing user');
+            return { success: true, message: 'Password reset email sent!' };
+        }
+
+        // Step 1: Invite user via Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(
+            nomineeEmail,
+            {
+                data: {
+                    nominee_name: nomineeName,
+                    category: category,
+                    invited_at: new Date().toISOString()
+                }
+            }
+        );
+
+        if (authError) {
+            console.error('❌ Auth Error:', authError);
+            
+            // If user already exists, send password reset
+            if (authError.message.includes('already registered')) {
+                const { data, error } = await supabase.auth.resetPasswordForEmail(
+                    nomineeEmail,
+                    {
+                        redirectTo: window.location.origin + '/set-password-profile-nominee.html'
+                    }
+                );
+                if (error) throw error;
+                return { success: true, message: 'Password reset sent to existing user!' };
+            }
+            
+            throw authError;
+        }
+
+        console.log('✅ Invitation sent successfully to:', nomineeEmail);
+        return { success: true, message: 'Invitation sent successfully!' };
+
+    } catch (error) {
+        console.error('❌ Invitation failed:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+async function sendInvitationsToFinalists() {
+    // Get all finalists
+    const { data: finalists, error } = await supabase
+        .from('nominations')
+        .select('*')
+        .eq('stage', 'finalist');
+
+    if (error) {
+        console.error('Error fetching finalists:', error);
+        alert('Could not fetch finalists.');
+        return;
+    }
+
+    if (!finalists || finalists.length === 0) {
+        alert('No finalists found.');
+        return;
+    }
+
+    // Group by nominee name to avoid duplicates
+    const uniqueNominees = new Map();
+    finalists.forEach(nom => {
+        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!uniqueNominees.has(key)) {
+            uniqueNominees.set(key, {
+                name: nom.nominee_name.trim(),
+                email: nom.nominee_email,
+                category: nom.category
+            });
+        }
+    });
+
+    const nomineeList = Array.from(uniqueNominees.values());
+    
+    console.log(`📤 Sending invitations to ${nomineeList.length} nominees...`);
+
+    // Send invitations one by one
+    let successCount = 0;
+    let failCount = 0;
+    const failedEmails = [];
+
+    for (const nominee of nomineeList) {
+        const result = await sendInvitationToNominee(
+            nominee.email,
+            nominee.name,
+            nominee.category
+        );
+
+        if (result.success) {
+            successCount++;
+            console.log(`✅ Sent to ${nominee.name} (${nominee.email})`);
+        } else {
+            failCount++;
+            failedEmails.push(`${nominee.name} (${nominee.email}): ${result.error}`);
+            console.error(`❌ Failed for ${nominee.name}: ${result.error}`);
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // Show detailed results
+    let message = `📨 Invitation Summary\n\n✅ Success: ${successCount}\n❌ Failed: ${failCount}`;
+    
+    if (failedEmails.length > 0) {
+        message += `\n\nFailed:\n${failedEmails.join('\n')}`;
+    }
+    
+    alert(message);
+    console.log('📊 Invitation Summary:', { successCount, failCount, failedEmails });
+}
+
+// Add this to your scripts.js file
+
+async function sendInvitationToNominee(nomineeEmail, nomineeName, category) {
+    console.log('📨 Sending invitation to:', nomineeEmail);
+    
+    try {
+        // First, check if user already exists
+        const { data: existingUser } = await supabase
+            .from('nominations')
+            .select('user_id')
+            .eq('nominee_email', nomineeEmail)
+            .single();
+
+        if (existingUser?.user_id) {
+            // User already has an account - send password reset instead
+            const { data, error } = await supabase.auth.resetPasswordForEmail(
+                nomineeEmail,
+                {
+                    redirectTo: window.location.origin + '/set-password-profile-nominee.html'
+                }
+            );
+            
+            if (error) throw error;
+            console.log('✅ Password reset sent to existing user');
+            return { success: true, message: 'Password reset email sent!' };
+        }
+
+        // Step 1: Invite user via Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(
+            nomineeEmail,
+            {
+                data: {
+                    nominee_name: nomineeName,
+                    category: category,
+                    invited_at: new Date().toISOString()
+                }
+            }
+        );
+
+        if (authError) {
+            console.error('❌ Auth Error:', authError);
+            
+            // If user already exists, send password reset
+            if (authError.message.includes('already registered')) {
+                const { data, error } = await supabase.auth.resetPasswordForEmail(
+                    nomineeEmail,
+                    {
+                        redirectTo: window.location.origin + '/set-password-profile-nominee.html'
+                    }
+                );
+                if (error) throw error;
+                return { success: true, message: 'Password reset sent to existing user!' };
+            }
+            
+            throw authError;
+        }
+
+        console.log('✅ Invitation sent successfully to:', nomineeEmail);
+        return { success: true, message: 'Invitation sent successfully!' };
+
+    } catch (error) {
+        console.error('❌ Invitation failed:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Function to send invitations to all finalists
+async function sendInvitationsToFinalists() {
+    // Get all finalists
+    const { data: finalists, error } = await supabase
+        .from('nominations')
+        .select('*')
+        .eq('stage', 'finalist');
+
+    if (error) {
+        console.error('Error fetching finalists:', error);
+        alert('Could not fetch finalists.');
+        return;
+    }
+
+    if (!finalists || finalists.length === 0) {
+        alert('No finalists found.');
+        return;
+    }
+
+    // Group by nominee name to avoid duplicates
+    const uniqueNominees = new Map();
+    finalists.forEach(nom => {
+        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!uniqueNominees.has(key)) {
+            uniqueNominees.set(key, {
+                name: nom.nominee_name.trim(),
+                email: nom.nominee_email,
+                category: nom.category
+            });
+        }
+    });
+
+    const nomineeList = Array.from(uniqueNominees.values());
+    
+    console.log(`📤 Sending invitations to ${nomineeList.length} nominees...`);
+
+    // Send invitations one by one
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const nominee of nomineeList) {
+        const result = await sendInvitationToNominee(
+            nominee.email,
+            nominee.name,
+            nominee.category
+        );
+
+        if (result.success) {
+            successCount++;
+            console.log(`✅ Sent to ${nominee.name}`);
+        } else {
+            failCount++;
+            console.error(`❌ Failed for ${nominee.name}: ${result.error}`);
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    alert(`📨 Done!\n\n✅ Success: ${successCount}\n❌ Failed: ${failCount}\n\nCheck the console for details.`);
+}
+
     async function finalizeAndNotify() {
         if (!confirm('Are you sure? This will LOCK all current finalists and send emails to their email addresses. This cannot be undone.')) return;
 
@@ -2259,6 +2527,54 @@ if (e.target.classList.contains('refresh-groups-btn') || e.target.closest('.refr
             return;
         }
 
+        // ===== SEND INVITATIONS BUTTON =====
+if (e.target.id === 'send-invitations-btn') {
+    if (!confirm('Send invitation emails to all finalists? They will receive a link to set up their profiles.')) return;
+    
+    const btn = e.target;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Sending...';
+    
+    await sendInvitationsToFinalists();
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bx bx-envelope"></i> Send Invitations';
+    return;
+}
+
+if (e.target.id === 'test-invite-btn') {
+        const testEmail = prompt('Enter email to test with:', 'test@example.com');
+        if (!testEmail) return;
+        
+        const testName = prompt('Enter nominee name:', 'Test Nominee');
+        if (!testName) return;
+        
+        const testCategory = prompt('Enter category:', 'Business Leadership');
+        if (!testCategory) return;
+        
+        console.log('🧪 Testing with:', { testEmail, testName, testCategory });
+        
+        const btn = e.target;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Sending...';
+        
+        const result = await sendInvitationToNominee(
+            testEmail,
+            testName,
+            testCategory
+        );
+        
+        if (result.success) {
+            alert(`✅ Invitation sent to ${testEmail}\nCheck your inbox/spam folder.`);
+        } else {
+            alert(`❌ Failed: ${result.error}`);
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bx bx-test-tube"></i> Test Invite';
+        return;
+    }
+
         // ---- SEND TO SINGLE WHATSAPP NUMBER (popup) ----
         if (e.target.classList.contains('send-single-wa') || e.target.closest('.send-single-wa')) {
             const btn = e.target.closest('.send-single-wa');
@@ -2355,7 +2671,10 @@ if (e.target.classList.contains('merge-group-btn') || e.target.closest('.merge-g
     return;
 }
     
-    });
+    
+
+
+});
 
 
     // --- MOBILE MENU LOGIC ---
