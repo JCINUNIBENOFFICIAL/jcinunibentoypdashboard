@@ -12,6 +12,6 @@ static/config.js
 
 
 
-Resend API Key: re_hu4DjKwz_4NEhW8CxfNvzXppxCisD588M
+Resend API Key: re_QhZrVoGb_4wBg6ok4siEJjzno3EZt7w18
 
-Resend Endpoint: https://xbrndlhzaluksjhdbnur.supabase.co/functions/v1/send-finalist-emails
+Edge Function Endpoint: https://xbrndlhzaluksjhdbnur.supabase.co/functions/v1/send-finalist-emails

@@ -1519,85 +1519,69 @@ function openEditFinalistModal(name, ids) {
     }
 }
 
-    async function finalizeAndNotify() {
-        if (!confirm('Are you sure? This will LOCK all current finalists and send emails to their email addresses. This cannot be undone.')) return;
+async function finalizeAndNotify() {
+    if (!confirm('Are you sure? This will LOCK all current finalists, create accounts for those without, and send emails. This cannot be undone.')) return;
 
-        const finalizeBtn = document.getElementById('finalize-notify-btn');
-        finalizeBtn.disabled = true;
-        finalizeBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Finalizing...';
+    const finalizeBtn = document.getElementById('finalize-notify-btn');
+    finalizeBtn.disabled = true;
+    finalizeBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Finalizing...';
 
-        try {
-            // 1. Set finalized_at for all current finalists
-            const { data: finalists, error: fetchErr } = await supabase
-                .from('nominations')
-                .select('*')
-                .eq('stage', 'finalist');
+    try {
+        // 1. Fetch all current finalists
+        const { data: finalists, error: fetchErr } = await supabase
+            .from('nominations')
+            .select('id, nominee_name, nominee_email, category, nominee_phone')
+            .eq('stage', 'finalist');
 
-            if (fetchErr || !finalists || finalists.length === 0) {
-                alert('No finalists to finalize.');
-                finalizeBtn.disabled = false;
-                finalizeBtn.innerHTML = '<i class="bx bx-lock-alt"></i> Finalize & Notify';
-                return;
-            }
-
-            const { error: updateErr } = await supabase
-                .from('nominations')
-                .update({ finalized_at: new Date().toISOString() })
-                .eq('stage', 'finalist');
-
-            if (updateErr) {
-                alert('Failed to lock finalists: ' + updateErr.message);
-                finalizeBtn.disabled = false;
-                finalizeBtn.innerHTML = '<i class="bx bx-lock-alt"></i> Finalize & Notify';
-                return;
-            }
-
-            // 2. Collect unique nominee names and all emails per name
-            const emailMap = new Map(); // key = displayName, value = Set of emails
-            finalists.forEach(n => {
-                const key = n.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
-                const display = n.nominee_name.trim();
-                if (!emailMap.has(display)) {
-                    emailMap.set(display, { emails: new Set(), name: display });
-                }
-                // Add all emails from this nomination (and possibly nominee_email)
-                if (n.nominee_email) emailMap.get(display).emails.add(n.nominee_email);
-                // If you have multiple emails in other fields, add them here
-            });
-
-            const emails = [];
-            const names = [];
-            emailMap.forEach((value, key) => {
-                value.emails.forEach(email => {
-                    emails.push(email);
-                    names.push(value.name);
-                });
-            });
-
-            // 3. Send emails via Edge Function
-            const { data: emailResult, error: emailErr } = await supabase.functions.invoke('send-finalist-emails', {
-                body: { emails, names }
-            });
-
-            if (emailErr) {
-                console.error('Email sending failed', emailErr);
-                alert('Finalists locked, but email sending failed. Check console.');
-            } else {
-                alert('Finalists locked and emails sent successfully!');
-            }
-
-            // 4. Show WhatsApp panel (admin can decide to send later)
-            showWhatsAppPanel(finalists);
-
-        } catch (err) {
-            console.error('Finalization error', err);
-            alert('An unexpected error occurred.');
-        } finally {
-            finalizeBtn.disabled = true; // remain disabled because it's now locked
-            finalizeBtn.innerHTML = '<i class="bx bx-check"></i> Finalized';
-            loadFinalists(); // refresh UI
+        if (fetchErr || !finalists || finalists.length === 0) {
+            alert('No finalists to finalize.');
+            finalizeBtn.disabled = false;
+            finalizeBtn.innerHTML = '<i class="bx bx-lock-alt"></i> Finalize & Notify';
+            return;
         }
+
+        // 2. Lock finalists (set finalized_at)
+        const { error: updateErr } = await supabase
+            .from('nominations')
+            .update({ finalized_at: new Date().toISOString() })
+            .eq('stage', 'finalist');
+
+        if (updateErr) {
+            alert('Failed to lock finalists: ' + updateErr.message);
+            finalizeBtn.disabled = false;
+            finalizeBtn.innerHTML = '<i class="bx bx-lock-alt"></i> Finalize & Notify';
+            return;
+        }
+
+        // 3. Call the edge function with the finalists list
+        const { data: response, error: fnErr } = await supabase.functions.invoke('send-finalist-emails', {
+            body: { finalists }
+        });
+
+        if (fnErr) {
+            console.error('Edge function error:', fnErr);
+            alert('Finalists locked, but account creation/email sending failed. Check console.');
+        } else {
+            const results = response?.results || [];
+            const successCount = response?.summary?.successful || 0;
+            const total = finalists.length;
+            alert(`✅ Finalized! ${successCount}/${total} accounts created and notified.`);
+            // Optionally show detailed results in console
+            console.log('Detailed results:', results);
+        }
+
+        // 4. Show WhatsApp panel (optional)
+        showWhatsAppPanel(finalists);
+
+    } catch (err) {
+        console.error('Finalization error', err);
+        alert('An unexpected error occurred.');
+    } finally {
+        finalizeBtn.disabled = true;
+        finalizeBtn.innerHTML = '<i class="bx bx-check"></i> Finalized';
+        loadFinalists();
     }
+}
 
 
     function showWhatsAppPanel(finalists) {
