@@ -441,29 +441,35 @@ navItems.forEach(item => {
         const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
         document.getElementById('refresh-dashboard')?.addEventListener('click', loadOverview);
         try {
-            const results = await Promise.all([
+            const [n,c,verified,setting] = await Promise.all([
                 supabase.from('nominations').select('id', {count:'exact',head:true}),
-                supabase.from('votes').select('id', {count:'exact',head:true}),
                 supabase.from('categories').select('id', {count:'exact',head:true}),
                 supabase.from('nominations').select('id', {count:'exact',head:true}).eq('status','verified'),
                 supabase.from('settings').select('key,value').eq('key','voting_open').maybeSingle()
             ]);
-            const error = results.find(result => result.error); if (error) throw error.error;
-            const [n,v,c,verified,setting] = results;
-            setText('stat-total-nominations', n.count ?? 0); setText('stat-votes', v.count ?? 0);
-            setText('stat-categories', c.count ?? 0); setText('stat-verified', verified.count ?? 0);
-            setText('stat-pending', Math.max(0,(n.count ?? 0)-(verified.count ?? 0)));
-            const open = String(setting.data?.value).toLowerCase() === 'true';
-            setText('stat-voting-status', open ? 'Open' : 'Closed'); setText('portal-status', open ? 'Open' : 'Closed');
+            const failed=[n,c,verified,setting].find(result=>result.error); if(failed)throw failed.error;
+            setText('stat-total-nominations',n.count??0); setText('stat-categories',c.count??0);
+            setText('stat-verified',verified.count??0); setText('stat-pending',Math.max(0,(n.count??0)-(verified.count??0)));
+            const open=String(setting.data?.value).toLowerCase()==='true';
+            setText('stat-voting-status',open?'Open':'Closed'); setText('portal-status',open?'Open':'Closed');
             setText('db-status','Connected');
-        } catch (error) {
-            console.error('Overview data check failed', error);
-            ['stat-total-nominations','stat-votes','stat-categories','stat-verified','stat-pending','stat-voting-status'].forEach(id=>setText(id,'Unavailable'));
+        } catch(error) {
+            console.error('Overview core data check failed',error);
+            ['stat-total-nominations','stat-categories','stat-verified','stat-pending','stat-voting-status'].forEach(id=>setText(id,'Unavailable'));
             setText('db-status','Connection error'); setText('portal-status','Unavailable');
+        }
+        try {
+            const {count,error}=await supabase.from('votes').select('id',{count:'exact',head:true});
+            if(error)throw error;
+            setText('stat-votes',count??0);
+        } catch(error) {
+            console.warn('Vote count is unavailable under current Supabase permissions',error);
+            setText('stat-votes','Restricted');
         }
         setText('backup-time','Not available'); setText('last-sync','Not available');
         loadRecentActivityForOverview();
     }
+
     async function loadRecentActivityForOverview() {
         const tbody = document.getElementById('overview-logs-body');
         if (!tbody) return;
@@ -511,13 +517,13 @@ navItems.forEach(item => {
             const limit = 50;
             const [{ data: noms }, { data: vts }, { data: cats }] = await Promise.all([
                 supabase.from('nominations').select('id, nominee_name, nominator_email, created_at, category').order('created_at', { ascending: false }).limit(limit),
-                supabase.from('votes').select('id, nomination_id, voter_email, created_at').order('created_at', { ascending: false }).limit(limit),
+                supabase.from('votes').select('id, nomination_id, created_at').order('created_at', { ascending: false }).limit(limit),
                 supabase.from('categories').select('id, name, created_at').order('created_at', { ascending: false }).limit(limit),
             ]);
 
             const events = [];
             (noms || []).forEach(n => events.push({ time: n.created_at, activity: `New Nomination: ${n.nominee_name}`, user: 'Public Portal', status: 'Received' }));
-            (vts || []).forEach(v => events.push({ time: v.created_at, activity: `Vote cast for nomination ${v.nomination_id}`, user: v.voter_email || 'anonymous', status: 'Voted' }));
+            (vts || []).forEach(v => events.push({ time: v.created_at, activity: `Vote cast for nomination ${v.nomination_id}`, user: 'Voter', status: 'Voted' }));
             (cats || []).forEach(c => events.push({ time: c.created_at, activity: `Category Added: ${c.name}`, user: 'Admin', status: 'Created' }));
 
             events.sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -819,15 +825,23 @@ async function loadResults() {
             supabase.from('votes').select('nomination_id'),
             supabase.from('categories').select('name')
         ]);
-        if(n.error)throw n.error;if(v.error)throw v.error;if(c.error)throw c.error;
+        if(n.error)throw n.error;if(c.error)throw c.error;
+        const voteAccessError=v.error;
         const votes=new Map();(v.data||[]).forEach(x=>votes.set(String(x.nomination_id),(votes.get(String(x.nomination_id))||0)+1));
         const rows=(n.data||[]).map(x=>({id:x.id,name:x.nominee_name||'Unnamed nominee',category:x.category||'Uncategorised',status:x.status||'Finalist',votes:votes.get(String(x.id))||0}));
-        const total=(v.data||[]).length;put('total-categories',new Set([...(c.data||[]).map(x=>x.name),...rows.map(x=>x.category)]).size);put('total-finalists',rows.length);put('results-total-votes',total);
+        const total=(v.data||[]).length;
+        const votesUnavailable=!!voteAccessError;put('total-categories',new Set([...(c.data||[]).map(x=>x.name),...rows.map(x=>x.category)]).size);put('total-finalists',rows.length);put('results-total-votes',total);
         const filter=()=>{const q=(document.getElementById('results-search')?.value||'').toLowerCase();const cat=document.getElementById('results-category-filter')?.value||'';const pos=document.getElementById('results-status-filter')?.value||'';return rows.filter(x=>x.name.toLowerCase().includes(q)&&(!cat||x.category===cat)&&(!pos||pos==='Finalist'||x.status.toLowerCase()===pos.toLowerCase()));};
         const categories=[...new Set(rows.map(x=>x.category))];const select=document.getElementById('results-category-filter');if(select){const old=select.value;select.innerHTML='<option value="">All Categories</option>'+categories.map(x=>'<option>'+escapeHTML(x)+'</option>').join('');select.value=categories.includes(old)?old:'';}
         const render=()=>{
             body.innerHTML='';
             const winnerGrid=document.getElementById('winner-grid');
+            if(votesUnavailable){
+                body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">Voting records are currently restricted by database permissions. Nominee data is available, but rankings cannot be calculated.</td></tr>';
+                put('results-count','Voting data restricted');
+                if(winnerGrid)winnerGrid.textContent='Winner information is unavailable until vote access is restored.';
+                return;
+            }
             if(!total){
                 body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">No voting records yet. Official rankings will appear after votes are recorded.</td></tr>';
                 put('results-count','0 Results');
