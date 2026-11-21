@@ -2436,6 +2436,14 @@ if (e.target.classList.contains('view-nominee-finalist') || e.target.closest('.v
             return;
         }
 
+        // Inspect an individual original nomination without changing it.
+        if (e.target.closest('.view-nomination-detail-btn')) {
+            const id = e.target.closest('.view-nomination-detail-btn').dataset.nominationId;
+            const nomination = (window.__NOMINATIONS_MAP__ || {})[id];
+            if (nomination) openNominationModal(nomination);
+            return;
+        }
+
         // Bulk finalist identity edits are also disabled because they overwrite multiple nomination records.
         if (e.target.closest('#edit-finalist-profile-btn, #save-finalist-details-btn')) {
             e.preventDefault();
