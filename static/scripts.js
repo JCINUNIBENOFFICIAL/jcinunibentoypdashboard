@@ -1439,10 +1439,11 @@ function openEditFinalistModal(name, ids) {
         const groups = {};
         filteredRows.forEach(nom => {
             // Normalize: trim, lowercase, collapse multiple spaces
-            const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
+            const displayName = (nom.nominee_name || '').trim() || 'Unnamed nominee';
+            const key = displayName.toLowerCase().replace(/\s+/g, ' ');
             if (!groups[key]) {
                 groups[key] = {
-                    displayName: nom.nominee_name.trim(), // keep original casing from first occurrence
+                    displayName, // keep original casing from first occurrence
                     count: 0,
                     lastDate: nom.created_at,
                     records: []
@@ -1473,9 +1474,7 @@ function openEditFinalistModal(name, ids) {
         groupArray.forEach(group => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-            <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;">
-                ${group.displayName}
-            </td>
+            <td class="nominee-name-cell" style="padding: 15px; border-bottom: 1px solid var(--bg-slate); font-weight: 600;"></td>
             <td style="padding: 15px; border-bottom: 1px solid var(--bg-slate);">
                 <span class="status-badge" style="background: var(--jci-blue); color: white;">${group.count}</span>
             </td>
@@ -1486,6 +1485,7 @@ function openEditFinalistModal(name, ids) {
                 <button class="view-btn view-group-trigger" data-name="${group.displayName}">View Submissions</button>
             </td>
         `;
+            tr.querySelector('.nominee-name-cell').textContent = group.displayName;
             tbody.appendChild(tr);
         });
 
