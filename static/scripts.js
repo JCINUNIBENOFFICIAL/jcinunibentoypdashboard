@@ -793,11 +793,12 @@ navItems.forEach(item => {
 
     async function loadFinalists() {
         // Fetch categories and finalists
-        const [{ data: categories, error: catErr }, finalistResult] = await Promise.all([
+        const [{ data: categories, error: catErr }, finalistResult, approvedResult] = await Promise.all([
             supabase.from('categories').select('*').order('display_order', { ascending: true }),
             fetchAllRows(() => supabase.from('nominations').select('*').eq('stage', 'finalist').order('id', { ascending: true }))
                 .then(data => ({ data, error: null }))
-                .catch(error => ({ data: null, error }))
+                .catch(error => ({ data: null, error })),
+            supabase.from('finalists').select('id', { count: 'exact', head: true })
         ]);
 
         if (catErr) console.error('Failed to load categories', catErr);
@@ -805,6 +806,16 @@ navItems.forEach(item => {
 
         const cats = categories || [];
         const finalistList = finalistResult.data || [];
+        const finalistNote = document.getElementById('finalist-data-quality-note');
+        if (finalistNote) {
+            if (finalistResult.error || approvedResult.error) {
+                finalistNote.textContent = 'Finalist counts are incomplete because one of the database queries failed. Please refresh or check database access.';
+                finalistNote.style.color = '#b91c1c';
+            } else {
+                finalistNote.textContent = `Nomination records marked as finalist stage: ${finalistList.length.toLocaleString()}. Approved records in the finalists table: ${(approvedResult.count || 0).toLocaleString()}. These are different measures; a finalist-stage nomination is not automatically an approved finalist.`;
+                finalistNote.style.color = '#b45309';
+            }
+        }
 
         // Render category cards
         const container = document.getElementById('category-cards-container');
