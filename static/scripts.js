@@ -2122,7 +2122,7 @@ async function sendInvitationsToFinalists() {
 
 // Read-only multiple-nomination tracking. This feature never updates nomination rows.
 function normalizeNomineeName(value = '') {
-    return String(value || '').trim().toLocaleLowerCase().replace(/\\s+/g, ' ');
+    return String(value || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
 function showMultipleNominations() {
@@ -2154,7 +2154,7 @@ function showMultipleNominations() {
         <div style="max-height:480px; overflow-y:auto;">
             ${groups.map((group, index) => {
                 const emails = new Set(group.records.map(r => String(r.nominee_email || r.primary_email || '').trim().toLowerCase()).filter(Boolean));
-                const phones = new Set(group.records.map(r => String(r.nominee_phone || r.whatsapp_contact || r.other_contact || '').replace(/\\D/g, '')).filter(Boolean));
+                const phones = new Set(group.records.map(r => String(r.nominee_phone || r.whatsapp_contact || r.other_contact || '').replace(/\D/g, '')).filter(Boolean));
                 const categories = [...new Set(group.records.map(r => String(r.category || '').trim()).filter(Boolean))];
                 const identityNote = emails.size > 1 || phones.size > 1
                     ? '<span style="color:#b45309; font-size:11px;">Identity details vary — review before treating as one person</span>'
