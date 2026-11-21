@@ -1213,7 +1213,7 @@ $$ LANGUAGE plpgsql;
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     // Show merge suggestions; this will affect global data
-                    showMergeSuggestions();
+                    showMultipleNominations();
                     // After merge, we could refresh but easier to close and reopen workflow
                     // For simplicity, just call showMergeSuggestions and close current modal
                     document.getElementById('detailsModal').style.display = 'none';
@@ -2114,262 +2114,112 @@ async function sendInvitationsToFinalists() {
 
 
 
-async function showMergeSuggestions() {
-    const allRows = window.__ALL_NOMINATIONS__ || [];
-    if (!allRows.length) {
-        alert('No data loaded.');
-        return;
-    }
-
-    // --- 1. Get unique normalized names ---
-    const nameMap = new Map();
-    allRows.forEach(nom => {
-        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
-        if (!nameMap.has(key)) {
-            nameMap.set(key, {
-                display: nom.nominee_name.trim(),
-                count: 0,
-                ids: []
-            });
-        }
-        const entry = nameMap.get(key);
-        entry.count++;
-        entry.ids.push(nom.id);
-    });
-
-    const uniqueNames = Array.from(nameMap.values());
-
-    // --- 2. Build union-find for all similar pairs ---
-    // Map each name display to its index
-    const indexMap = new Map();
-    uniqueNames.forEach((item, idx) => indexMap.set(item.display, idx));
-
-    // Union-Find helpers
-    const parent = Array.from({ length: uniqueNames.length }, (_, i) => i);
-    function find(x) {
-        while (parent[x] !== x) {
-            parent[x] = parent[parent[x]];
-            x = parent[x];
-        }
-        return x;
-    }
-    function union(a, b) {
-        const ra = find(a), rb = find(b);
-        if (ra !== rb) parent[rb] = ra;
-    }
-
-    // Fuse.js to find all similar pairs
-    const fuse = new Fuse(uniqueNames, {
-        keys: ['display'],
-        threshold: 0.5,          // slightly looser for better recall
-        includeScore: true
-    });
-
-    // For each name, find all similar names and union them
-    for (let i = 0; i < uniqueNames.length; i++) {
-        const nameObj = uniqueNames[i];
-        const results = fuse.search(nameObj.display);
-        results.forEach(result => {
-            const other = result.item;
-            if (other.display === nameObj.display) return;
-            const j = indexMap.get(other.display);
-            if (j !== undefined && result.score <= 0.5) {
-                union(i, j);
-            }
-        });
-    }
-
-    // --- 3. Build groups from connected components ---
-    const groupsMap = new Map();  // root -> { names: [], ids: [], totalCount: 0 }
-    for (let i = 0; i < uniqueNames.length; i++) {
-        const root = find(i);
-        if (!groupsMap.has(root)) {
-            groupsMap.set(root, { names: [], ids: [], totalCount: 0 });
-        }
-        const group = groupsMap.get(root);
-        const item = uniqueNames[i];
-        group.names.push(item);
-        group.ids.push(...item.ids);
-        group.totalCount += item.count;
-    }
-
-    // Convert to array, keep only groups with at least 2 different names
-    let groups = [];
-    groupsMap.forEach((group, root) => {
-        if (group.names.length > 1) {
-            // Determine primary: the name with highest count
-            group.names.sort((a, b) => b.count - a.count);
-            groups.push({
-                primary: group.names[0],
-                variants: group.names.slice(1),
-                totalCount: group.totalCount,
-                allIds: group.ids
-            });
-        }
-    });
-
-    // Store for detail view
-    window.__mergeGroups = groups;
-
-    // --- 4. Build main list HTML ---
-    let html = '<div style="max-height: 400px; overflow-y: auto;">';
-
-    html += `
-    <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
-        <button class="view-btn refresh-groups-btn" style="font-size:12px;">
-            <i class='bx bx-refresh'></i> Refresh Groups
-        </button>
-        <button class="view-btn manual-merge-btn" style="font-size:12px; margin-left:8px;">
-    <i class='bx bx-git-merge'></i> Manual Merge
-</button>
-    </div>`;
-
-    if (groups.length === 0) {
-        html += '<p>No potential duplicates found.</p>';
-    } else {
-        groups.forEach((group, index) => {
-            const variantCount = group.variants.length;
-            const variantPreview = group.variants.map(v => `${v.display} (${v.count})`).join(', ');
-            html += `
-            <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>${group.primary.display}</strong> (${group.primary.count} entries)
-                        <br/><small style="color:var(--text-muted);">${variantCount} similar name(s): ${variantPreview}</small>
-                    </div>
-                    <button class="view-btn open-group-btn" data-group="${index}">
-                        <i class='bx bx-expand-vertical'></i> Open
-                    </button>
-                </div>
-            </div>`;
-        });
-    }
-    html += '</div>';
-
-    // --- 5. Render logs (unchanged) ---
-    const logs = window.__mergeLogs || [];
-    html += '<div id="merge-logs" style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:12px; max-height:150px; overflow-y:auto; background:#f9fafb; border-radius:6px; padding:8px;">';
-    if (logs.length === 0) {
-        html += '<p style="color:var(--text-muted); font-size:12px;">No merge actions yet.</p>';
-    } else {
-        logs.forEach(log => {
-            const icon = log.success ? '<i class="bx bx-check-circle" style="color:#22c55e;"></i>' : '<i class="bx bx-error-circle" style="color:#ef4444;"></i>';
-            html += `<div style="font-size:12px; margin-bottom:4px;">${icon} ${log.message}</div>`;
-        });
-    }
-    html += '</div>';
-
-    // Close button
-    html += '<div style="margin-top:20px; text-align:right;"><button class="btn-secondary close-modal">Close</button></div>';
-
-    // --- 6. Set modal content ---
-    const modal = document.getElementById('detailsModal');
-    document.getElementById('modal-title').textContent = 'Merge Suggestions';
-    document.getElementById('modal-subtitle').textContent = 'Groups of similar names';
-    document.getElementById('modal-data').innerHTML = html;
-    modal.style.display = 'flex';
+// Read-only multiple-nomination tracking. This feature never updates nomination rows.
+function normalizeNomineeName(value = '') {
+    return String(value || '').trim().toLocaleLowerCase().replace(/\\s+/g, ' ');
 }
 
-function openManualMergeModal() {
-    const allRows = window.__ALL_NOMINATIONS__ || [];
-    if (!allRows.length) {
-        alert('No data loaded.');
+function showMultipleNominations() {
+    const rows = window.__ALL_NOMINATIONS__ || [];
+    if (!rows.length) {
+        alert('No nomination data is loaded.');
         return;
     }
 
-    // Get unique names (display version)
-    const uniqueNames = [...new Set(allRows.map(n => n.nominee_name.trim()))].sort();
+    const groupsMap = new Map();
+    rows.forEach(nomination => {
+        const display = String(nomination.nominee_name || '').trim() || 'Unnamed nominee';
+        const key = normalizeNomineeName(display) || '__unnamed__';
+        if (!groupsMap.has(key)) {
+            groupsMap.set(key, { display, records: [] });
+        }
+        groupsMap.get(key).records.push(nomination);
+    });
 
-    let html = `
-        <div style="display:flex; flex-direction:column; gap:16px;">
-            <p>Select the name to <strong>replace</strong> (source) and the correct name (target).</p>
+    const groups = Array.from(groupsMap.values())
+        .sort((a, b) => b.records.length - a.records.length || a.display.localeCompare(b.display));
+    window.__nomineeTrackingGroups = groups;
 
-            <div>
-                <label style="font-weight:600; display:block; margin-bottom:4px;">Source name (to be replaced)</label>
-                <input type="text" id="source-name-input" list="source-list" placeholder="Type or select a name" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px;">
-                <datalist id="source-list">
-                    ${uniqueNames.map(n => `<option value="${n}">`).join('')}
-                </datalist>
-            </div>
-
-            <div>
-                <label style="font-weight:600; display:block; margin-bottom:4px;">Target name (correct spelling)</label>
-                <input type="text" id="target-name-input" list="target-list" placeholder="Type or select a name" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:6px;">
-                <datalist id="target-list">
-                    ${uniqueNames.map(n => `<option value="${n}">`).join('')}
-                </datalist>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
-                <button class="btn-secondary back-to-groups-btn">Cancel</button>
-                <button class="btn-primary" id="execute-manual-merge-btn">
-                    <i class='bx bx-git-merge'></i> Merge
-                </button>
-            </div>
+    const html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+            <p style="margin:0; color:var(--text-muted); font-size:13px;">All nomination records are retained. Groups are based on normalized nominee names and are for identification and review only.</p>
+            <button class="view-btn refresh-groups-btn" style="font-size:12px;"><i class='bx bx-refresh'></i> Refresh</button>
         </div>
+        <div style="max-height:480px; overflow-y:auto;">
+            ${groups.map((group, index) => {
+                const emails = new Set(group.records.map(r => String(r.nominee_email || r.primary_email || '').trim().toLowerCase()).filter(Boolean));
+                const phones = new Set(group.records.map(r => String(r.nominee_phone || r.whatsapp_contact || r.other_contact || '').replace(/\\D/g, '')).filter(Boolean));
+                const categories = [...new Set(group.records.map(r => String(r.category || '').trim()).filter(Boolean))];
+                const identityNote = emails.size > 1 || phones.size > 1
+                    ? '<span style="color:#b45309; font-size:11px;">Identity details vary — review before treating as one person</span>'
+                    : '<span style="color:var(--text-muted); font-size:11px;">Name-based group</span>';
+                return `
+                    <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:9px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <div style="min-width:0;">
+                                <strong>${escapeHTML(group.display)}</strong>
+                                <span class="status-badge" style="background:var(--jci-blue); color:white; margin-left:6px;">${group.records.length} nominations</span>
+                                <div style="margin-top:5px;">${identityNote}</div>
+                                <small style="color:var(--text-muted);">${categories.length} categor${categories.length === 1 ? 'y' : 'ies'} · ${emails.size} email identifier(s) · ${phones.size} phone identifier(s)</small>
+                            </div>
+                            <button class="view-btn open-nominee-group-btn" data-group="${index}"><i class='bx bx-folder-open'></i> View records</button>
+                        </div>
+                    </div>`;
+            }).join('')}
+        </div>
+        <div style="margin-top:14px; text-align:right;"><button class="btn-secondary close-modal">Close</button></div>
     `;
 
-    document.getElementById('modal-title').textContent = 'Manual Merge';
-    document.getElementById('modal-subtitle').textContent = 'Merge one name into another';
+    document.getElementById('modal-title').textContent = 'Multiple Nomination Tracking';
+    document.getElementById('modal-subtitle').textContent = `${groups.length} name-based nominee groups · ${rows.length} nomination records`;
     document.getElementById('modal-data').innerHTML = html;
     document.getElementById('detailsModal').style.display = 'flex';
 }
 
-function showMergeGroupDetail(groupIndex) {
-    const groups = window.__mergeGroups || [];
-    const group = groups[groupIndex];
+function showNomineeGroupDetail(groupIndex) {
+    const group = (window.__nomineeTrackingGroups || [])[Number(groupIndex)];
     if (!group) return;
 
-    // Ensure we work on the current group data (variants may have been removed)
-    const currentGroup = group;
-    const allCandidates = [currentGroup.primary, ...currentGroup.variants];
-
-    let html = `
-        <div style="margin-bottom:16px;">
-            <button class="view-btn back-to-groups-btn">
-                <i class='bx bx-arrow-back'></i> Back to list
-            </button>
-        </div>
-        <p style="margin-bottom:12px; font-weight:600;">Select the correct spelling for this group:</p>
-        <div style="max-height:350px; overflow-y:auto; margin-bottom:16px;">
-    `;
-
-    allCandidates.forEach((candidate, idx) => {
-        const isPrimary = idx === 0;
-        const checked = isPrimary ? 'checked' : '';
-        html += `
-            <div style="display:flex; align-items:center; padding:8px; border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; ${isPrimary ? 'background: #f0f9ff;' : ''}">
-                <label style="display:flex; align-items:center; flex:1; cursor:pointer; margin:0;">
-                    <input type="radio" name="selected-name" value="${candidate.display}" data-ids="${candidate.ids.join(',')}" ${checked} style="margin-right:8px;">
-                    <div>
-                        <strong>${candidate.display}</strong>
-                        <span style="font-size:12px; color:var(--text-muted);"> (${candidate.count} entries)</span>
-                        ${isPrimary ? '<span style="font-size:10px; background:var(--jci-blue); color:#fff; padding:1px 6px; border-radius:4px; margin-left:6px;">main</span>' : ''}
-                    </div>
-                </label>
-                ${!isPrimary ? `
-                <button class="view-btn remove-variant-btn" data-group="${groupIndex}" data-name="${candidate.display}" style="color:#ef4444; font-size:11px; padding:2px 8px; margin-left:8px;" title="Remove this variant from the group">
-                    <i class='bx bx-x'></i> Remove
-                </button>` : ''}
-            </div>
-        `;
+    const categoryCounts = new Map();
+    group.records.forEach(record => {
+        const category = String(record.category || 'Unspecified category').trim() || 'Unspecified category';
+        categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
     });
 
-    html += `
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
-            <button class="btn-secondary close-modal">Cancel</button>
-            ${currentGroup.variants.length > 0 ? `
-            <button class="btn-primary merge-group-btn" data-group="${groupIndex}">
-                <i class='bx bx-git-merge'></i> Merge all into selected name
-            </button>` : '<span style="color:var(--text-muted);">No variants left to merge.</span>'}
-        </div>
-    `;
+    const recordRows = group.records.map(record => {
+        const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'Date unavailable';
+        return `
+            <tr>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);">${escapeHTML(record.id)}</td>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);">${escapeHTML(record.category || '—')}</td>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);">${escapeHTML(record.nominator_email || '—')}</td>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);">${escapeHTML(record.nominee_email || record.primary_email || '—')}</td>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);">${escapeHTML(record.status || '—')}</td>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);">${escapeHTML(date)}</td>
+                <td style="padding:10px; border-bottom:1px solid var(--bg-slate);"><button class="view-btn view-nomination-detail-btn" data-nomination-id="${escapeHTML(record.id)}">Details</button></td>
+            </tr>`;
+    }).join('');
 
-    document.getElementById('modal-subtitle').textContent = `Editing: ${currentGroup.primary.display}`;
-    document.getElementById('modal-data').innerHTML = html;
+    document.getElementById('modal-title').textContent = group.display;
+    document.getElementById('modal-subtitle').textContent = `${group.records.length} individual nomination records · records remain separate`;
+    document.getElementById('modal-data').innerHTML = `
+        <button class="view-btn back-to-groups-btn" style="margin-bottom:12px;"><i class='bx bx-arrow-back'></i> Back to groups</button>
+        <div style="padding:12px; background:var(--bg-slate); border-radius:8px; margin-bottom:14px;">
+            <strong>Nominations by category</strong>
+            <ul style="margin:8px 0 0 18px;">${Array.from(categoryCounts.entries()).map(([category, count]) => `<li>${escapeHTML(category)}: ${count}</li>`).join('')}</ul>
+            <p style="font-size:12px; color:var(--text-muted); margin:8px 0 0;">This is a name-based grouping, not a confirmed identity merge. Check contact details and individual records before drawing conclusions.</p>
+        </div>
+        <div class="table-responsive">
+            <table style="width:100%; min-width:850px; border-collapse:collapse; text-align:left;">
+                <thead><tr style="font-size:11px; color:var(--text-muted);">
+                    <th style="padding:10px;">RECORD ID</th><th style="padding:10px;">CATEGORY</th><th style="padding:10px;">NOMINATOR</th><th style="padding:10px;">NOMINEE EMAIL</th><th style="padding:10px;">STATUS</th><th style="padding:10px;">SUBMITTED</th><th style="padding:10px;">ACTION</th>
+                </tr></thead>
+                <tbody>${recordRows}</tbody>
+            </table>
+        </div>`;
 }
 
+// Legacy merge functions are intentionally retained but are not exposed or callable from the UI.
     // Helper to generate CSV (placed outside, e.g., after loadNominations)
     function exportCSV(items, exportType = 'nominations') {
         const headers = ['id', 'nominee_name', 'nominee_email', 'nominator_email', 'category', 'faculty', 'department', 'level', 'status', 'whatsapp_contact', 'reason', 'created_at'];
@@ -2574,9 +2424,22 @@ if (e.target.classList.contains('view-nominee-finalist') || e.target.closest('.v
     return;
 }
 
-        // Show merge suggestions
+        // Open read-only multiple-nomination tracking
         if (e.target.closest('#show-merge-suggestions-btn')) {
-            showMergeSuggestions();
+            showMultipleNominations();
+            return;
+        }
+
+        // Open all original nomination records in a name-based group
+        if (e.target.closest('.open-nominee-group-btn')) {
+            showNomineeGroupDetail(e.target.closest('.open-nominee-group-btn').dataset.group);
+            return;
+        }
+
+        // Legacy merge controls are blocked. Keep their implementation for possible restoration.
+        if (e.target.closest('.manual-merge-btn, #execute-manual-merge-btn, .merge-group-btn, .remove-variant-btn')) {
+            e.preventDefault();
+            alert('Merge actions are disabled. All nomination records must remain unchanged.');
             return;
         }
 
@@ -2634,7 +2497,7 @@ if (e.target.id === 'execute-manual-merge-btn') {
     }
 
     await loadNominations().catch(e => console.error(e));
-    showMergeSuggestions();  // return to updated list
+    showMultipleNominations();  // return to updated list
     return;
 }
 
@@ -2659,14 +2522,13 @@ if (e.target.classList.contains('remove-variant-btn') || e.target.closest('.remo
     }
 
     // Refresh the detail view
-    showMergeGroupDetail(groupIndex);
+    showNomineeGroupDetail(groupIndex);
     return;
 }
 
 if (e.target.classList.contains('refresh-groups-btn') || e.target.closest('.refresh-groups-btn')) {
-    // Re-run the merge suggestions algorithm with fresh data
-    await loadNominations().catch(e => console.error(e));  // ensure latest data
-    await showMergeSuggestions();
+    await loadNominations().catch(e => console.error(e));
+    showMultipleNominations();
     return;
 }
 
@@ -2762,7 +2624,7 @@ if (e.target.classList.contains('open-group-btn') || e.target.closest('.open-gro
 
 // ---- Back to groups list ----
 if (e.target.classList.contains('back-to-groups-btn') || e.target.closest('.back-to-groups-btn')) {
-    showMergeSuggestions();
+    showMultipleNominations();
     return;
 }
 
@@ -2831,7 +2693,7 @@ if (e.target.classList.contains('merge-group-btn') || e.target.closest('.merge-g
 
     // Refresh data and return to main list
     await loadNominations().catch(e => console.error(e));
-    await showMergeSuggestions();
+    await showMultipleNominations();
     return;
 }
     
