@@ -1639,23 +1639,6 @@ function openEditFinalistModal(name, ids) {
             tbody.appendChild(tr);
         });
 
-        // 6. Export button – exports all raw rows (not grouped)
-        const exportBtn = document.getElementById('export-nominations-btn');
-        if (exportBtn) {
-            exportBtn.onclick = () => {
-                const all = window.__ALL_NOMINATIONS__ || [];
-                if (!all.length) return alert('No data to export');
-                exportCSV(all, 'all_nominations');
-            };
-        }
-        const filteredExportBtn = document.getElementById('export-filtered-nominations-btn');
-        if (filteredExportBtn) {
-            filteredExportBtn.onclick = () => {
-                const filtered = window.__FILTERED_NOMINATIONS__ || [];
-                if (!filtered.length) return alert('There are no filtered nominations to export.');
-                exportCSV(filtered, 'filtered_nominations');
-            };
-        }
     }
 
     async function populateCategoryDropdown() {
