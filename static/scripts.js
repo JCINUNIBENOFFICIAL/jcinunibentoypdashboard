@@ -342,6 +342,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update your Click Listener for Voting
     // Event Delegation
     document.addEventListener('click', async (e) => {
+        // Hard-stop all legacy bulk identity edits and merge actions before their handlers run.
+        if (e.target.closest('#edit-finalist-profile-btn, #save-finalist-details-btn, .manual-merge-btn, #execute-manual-merge-btn, .merge-group-btn, .remove-variant-btn')) {
+            e.preventDefault();
+            alert('Merge and bulk nominee identity edits are disabled. Original nomination records must remain unchanged.');
+            return;
+        }
         const banner = document.getElementById('voting-banner');
         const statusLabel = document.getElementById('v-status');
 
