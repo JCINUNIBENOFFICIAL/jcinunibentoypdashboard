@@ -1548,8 +1548,8 @@ function openEditFinalistModal(name, ids) {
     const select = document.getElementById('category-filter');
     if (!select) return;
 
-    // Clear existing options (keep the "All Categories" one)
-    select.innerHTML = '<option value="all">All Categories</option>';
+    // Remember the user's choice before refreshing the options.
+    const selectedValue = select.value || 'all';
 
     try {
         const { data: categories, error } = await supabase
@@ -1557,13 +1557,24 @@ function openEditFinalistModal(name, ids) {
             .select('name')
             .order('display_order', { ascending: true });
 
-        if (!error && categories) {
-            categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat.name;
-                opt.textContent = cat.name;
-                select.appendChild(opt);
-            });
+        // Keep the existing options if the categories table is empty or unavailable.
+        if (error) {
+            console.warn('Could not load categories for filter', error);
+            return;
+        }
+        if (!categories || categories.length === 0) return;
+
+        select.innerHTML = '<option value="all">All Categories</option>';
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.name;
+            opt.textContent = cat.name;
+            select.appendChild(opt);
+        });
+
+        // Restore the selected category if it is still available.
+        if ([...select.options].some(option => option.value === selectedValue)) {
+            select.value = selectedValue;
         }
     } catch (e) {
         console.warn('Could not load categories for filter', e);
