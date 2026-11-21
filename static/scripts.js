@@ -2436,6 +2436,13 @@ if (e.target.classList.contains('view-nominee-finalist') || e.target.closest('.v
             return;
         }
 
+        // Bulk finalist identity edits are also disabled because they overwrite multiple nomination records.
+        if (e.target.closest('#edit-finalist-profile-btn, #save-finalist-details-btn')) {
+            e.preventDefault();
+            alert('Bulk nominee identity edits are disabled. Original nomination details must remain unchanged.');
+            return;
+        }
+
         // Legacy merge controls are blocked. Keep their implementation for possible restoration.
         if (e.target.closest('.manual-merge-btn, #execute-manual-merge-btn, .merge-group-btn, .remove-variant-btn')) {
             e.preventDefault();
