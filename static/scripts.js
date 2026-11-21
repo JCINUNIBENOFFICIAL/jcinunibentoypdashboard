@@ -36,15 +36,20 @@ const templateViews = {
         htmlContent: '',
     },
     voting: {
-        filePath: './views/voting.html',
+        filePath: '/views/voting.html',
         htmlContent: '',
     },
+    results: {
+        filePath: '/views/results.html',
+        htmlContent: '',
+    },
+    // Both dashboard links lead to the existing audit-trail screen.
     audit: {
-        filePath: '/views/audit.html',
+        filePath: '/views/audit-log.html',
         htmlContent: '',
     },
     logs: {
-        filePath: '/views/logs.html',
+        filePath: '/views/audit-log.html',
         htmlContent: '',
     },
     content: {
@@ -378,6 +383,17 @@ navItems.forEach(item => {
     });
 });
 
+    // Overview shortcuts and the "View Full Logs" link use the same
+    // navigation path as the sidebar so every link loads its matching template.
+    document.addEventListener('click', (e) => {
+        const shortcut = e.target.closest('.dashboard-action, [data-view].view-btn');
+        if (!shortcut) return;
+
+        const viewKey = shortcut.getAttribute('data-view');
+        const navItem = document.querySelector(`.nav-item[data-view="${viewKey}"]`);
+        if (navItem) navItem.click();
+    });
+
     // when cards are clicked in overview, navigate to matching view
     document.addEventListener('click', (e) => {
         const card = e.target.closest('.stat-card');
@@ -398,17 +414,6 @@ navItems.forEach(item => {
     async function loadOverview() {
         const template = await getViewMarkup('overview');
         contentArea.innerHTML = template;
-
-        // Attach event listeners only after DOM is updated
-        const viewLogsBtn = document.querySelector('.view-btn');
-        if (viewLogsBtn && viewLogsBtn.textContent.includes('View All Logs')) {
-            viewLogsBtn.addEventListener('click', async () => {
-                const viewMarkup = await getViewMarkup('logs');
-                contentArea.innerHTML = viewMarkup;
-                applySecurityRoles();
-                await loadLogs();
-            });
-        }
 
         applySecurityRoles();
 
