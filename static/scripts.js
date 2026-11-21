@@ -299,6 +299,12 @@ function openDossierModal() {
 
 // 4. CORE CONTROLLER
 document.addEventListener('DOMContentLoaded', async () => {
+    // Require a real Supabase session before loading admin data.
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+        window.location.replace('index.html');
+        return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         window.location.href = 'index.html';
@@ -466,13 +472,13 @@ navItems.forEach(item => {
             const limit = 5;
             const [{ data: noms }, { data: vts }, { data: cats }] = await Promise.all([
                 supabase.from('nominations').select('id, nominee_name, nominator_email, created_at, category').order('created_at', { ascending: false }).limit(limit),
-                supabase.from('votes').select('id, nomination_id, voter_email, created_at').order('created_at', { ascending: false }).limit(limit),
+                supabase.from('votes').select('id, nomination_id, voter_id, created_at').order('created_at', { ascending: false }).limit(limit),
                 supabase.from('categories').select('id, name, created_at').order('created_at', { ascending: false }).limit(limit),
             ]);
 
             const events = [];
             (noms || []).forEach(n => events.push({ time: n.created_at, activity: `New Nomination: ${n.nominee_name}`, user: 'Public Portal', status: 'Received' }));
-            (vts || []).forEach(v => events.push({ time: v.created_at, activity: `Vote cast for nomination ${v.nomination_id}`, user: v.voter_email || 'anonymous', status: 'Voted' }));
+            (vts || []).forEach(v => events.push({ time: v.created_at, activity: `Vote cast for nomination ${v.nomination_id}`, user: 'Voter', status: 'Voted' }));
             (cats || []).forEach(c => events.push({ time: c.created_at, activity: `Category Added: ${c.name}`, user: 'Admin', status: 'Created' }));
 
             events.sort((a, b) => new Date(b.time) - new Date(a.time));
