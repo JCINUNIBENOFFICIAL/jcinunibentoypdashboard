@@ -1410,6 +1410,7 @@ function openEditFinalistModal(name, ids) {
 
         // Store for export (full list)
         window.__ALL_NOMINATIONS__ = allNoms || [];
+        window.__FILTERED_NOMINATIONS__ = [];
         // Build ID map for fast lookup when clicking "Details"
         window.__NOMINATIONS_MAP__ = {};
         (allNoms || []).forEach(nom => { window.__NOMINATIONS_MAP__[nom.id] = nom; });
@@ -1432,6 +1433,7 @@ function openEditFinalistModal(name, ids) {
         if (statusVal !== 'all') {
             filteredRows = filteredRows.filter(nom => nom.status === statusVal);
         }
+        window.__FILTERED_NOMINATIONS__ = filteredRows;
 
         // 4. Group by normalized nominee name
         const groups = {};
@@ -1493,7 +1495,15 @@ function openEditFinalistModal(name, ids) {
             exportBtn.onclick = () => {
                 const all = window.__ALL_NOMINATIONS__ || [];
                 if (!all.length) return alert('No data to export');
-                exportCSV(all);
+                exportCSV(all, 'all_nominations');
+            };
+        }
+        const filteredExportBtn = document.getElementById('export-filtered-nominations-btn');
+        if (filteredExportBtn) {
+            filteredExportBtn.onclick = () => {
+                const filtered = window.__FILTERED_NOMINATIONS__ || [];
+                if (!filtered.length) return alert('There are no filtered nominations to export.');
+                exportCSV(filtered, 'filtered_nominations');
             };
         }
     }
@@ -2206,19 +2216,19 @@ function showMergeGroupDetail(groupIndex) {
 }
 
     // Helper to generate CSV (placed outside, e.g., after loadNominations)
-    function exportCSV(items) {
+    function exportCSV(items, exportType = 'nominations') {
         const headers = ['id', 'nominee_name', 'nominee_email', 'nominator_email', 'category', 'faculty', 'department', 'level', 'status', 'whatsapp_contact', 'reason', 'created_at'];
         const csvRows = [headers.join(',')];
         items.forEach(it => {
             const row = headers.map(h => '"' + String(it[h] || '').replace(/"/g, '""') + '"').join(',');
             csvRows.push(row);
         });
-        const csv = csvRows.join('\n');
+        const csv = '\uFEFF' + csvRows.join('\r\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `nominations_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `${exportType}_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     }
@@ -2226,14 +2236,24 @@ function showMergeGroupDetail(groupIndex) {
     // Event Delegation
     document.addEventListener('click', async (e) => {
         // ----- Apply filters -----
-        if (e.target.id === 'apply-filters-btn') {
+        if (e.target.closest('#apply-filters-btn')) {
+            await loadNominations();
+            return;
+        }
+        if (e.target.closest('#clear-nomination-filters-btn')) {
+            const search = document.getElementById('name-search');
+            const category = document.getElementById('category-filter');
+            const status = document.getElementById('status-filter');
+            if (search) search.value = '';
+            if (category) category.value = 'all';
+            if (status) status.value = 'all';
             await loadNominations();
             return;
         }
 
         // ----- Open single nomination details (profile card) -----
-        if (e.target.classList.contains('review-trigger')) {
-            const id = e.target.getAttribute('data-id');
+        if (e.target.closest('.review-trigger')) {
+            const id = e.target.closest('.review-trigger').getAttribute('data-id');
             const nom = (window.__NOMINATIONS_MAP__ || {})[id];
             if (nom) {
                 openNominationModal(nom);
@@ -2329,11 +2349,11 @@ if (e.target.id === 'save-finalist-details-btn') {
 }
 
         // ----- Open grouped submissions list -----
-        if (e.target.classList.contains('view-group-trigger')) {
-            const displayName = e.target.getAttribute('data-name');
+        if (e.target.closest('.view-group-trigger')) {
+            const displayName = e.target.closest('.view-group-trigger').getAttribute('data-name');
             const allRows = window.__ALL_NOMINATIONS__ || [];
             const matching = allRows.filter(nom =>
-                nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ') === displayName.toLowerCase().replace(/\s+/g, ' ')
+                (nom.nominee_name || '').trim().toLowerCase().replace(/\s+/g, ' ') === (displayName || '').toLowerCase().replace(/\s+/g, ' ')
             );
 
             let rowsHtml = '';
@@ -2400,7 +2420,7 @@ if (e.target.classList.contains('view-nominee-finalist') || e.target.closest('.v
 }
 
         // Show merge suggestions
-        if (e.target.id === 'show-merge-suggestions-btn') {
+        if (e.target.closest('#show-merge-suggestions-btn')) {
             showMergeSuggestions();
             return;
         }
