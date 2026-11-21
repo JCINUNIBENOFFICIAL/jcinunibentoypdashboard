@@ -125,6 +125,12 @@ function applySecurityRoles() {
  * 
  * @returns {void}
  */
+function escapeHTML(value = '') {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+}
+
 function openNominationModal(nomination = null) {
     const modal = document.getElementById('detailsModal');
     const modalBody = document.getElementById('modal-data');
@@ -135,8 +141,19 @@ function openNominationModal(nomination = null) {
         return;
     }
 
+    const nomineeName = escapeHTML(nomination.nominee_name || 'Unnamed nominee');
+    const nomineeEmail = escapeHTML(nomination.nominee_email || '—');
+    const category = escapeHTML(nomination.category || '—');
+    const status = escapeHTML(nomination.status || 'Pending');
+    const statusClass = /^[a-z0-9_-]+$/i.test(nomination.status || '') ? nomination.status : 'pending';
+    const nominatorEmail = escapeHTML(nomination.nominator_email || '—');
+    const faculty = escapeHTML(nomination.faculty || '');
+    const department = escapeHTML(nomination.department || '');
+    const reason = escapeHTML(nomination.reason || 'No write-up provided.');
+    const whatsapp = escapeHTML(nomination.whatsapp_contact || '');
+
     // Set modal title dynamically
-    document.getElementById('modal-title').textContent = nomination.nominee_name;
+    document.getElementById('modal-title').textContent = nomination.nominee_name || 'Unnamed nominee';
     document.getElementById('modal-subtitle').textContent = nomination.category || 'Category not specified';
 
     modalBody.innerHTML = `
@@ -144,11 +161,11 @@ function openNominationModal(nomination = null) {
             <!-- Profile header -->
             <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
                 <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--jci-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700;">
-                    ${nomination.nominee_name.charAt(0).toUpperCase()}
+                    ${nomineeName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                    <h3 style="margin: 0; font-size: 18px; color: var(--jci-black);">${nomination.nominee_name}</h3>
-                    <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">${nomination.nominee_email}</p>
+                    <h3 style="margin: 0; font-size: 18px; color: var(--jci-black);">${nomineeName}</h3>
+                    <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">${nomineeEmail}</p>
                 </div>
             </div>
 
@@ -156,18 +173,18 @@ function openNominationModal(nomination = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Category</span>
-                    <p style="font-weight: 600; margin: 4px 0 0;">${nomination.category || '—'}</p>
+                    <p style="font-weight: 600; margin: 4px 0 0;">${category}</p>
                 </div>
                 <div>
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Status</span>
                     <p style="font-weight: 600; margin: 4px 0 0;">
-                        <span class="status-badge ${nomination.status || 'pending'}">${nomination.status || 'Pending'}</span>
+                        <span class="status-badge ${statusClass}">${status}</span>
                     </p>
                 </div>
                 <div>
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Nominator</span>
-                    <p style="font-weight: 600; margin: 4px 0 0;">${nomination.nominator_email || '—'}</p>
-                    <p style="font-size: 13px; color: var(--text-muted);">${nomination.faculty || ''} ${nomination.department ? '— ' + nomination.department : ''}</p>
+                    <p style="font-weight: 600; margin: 4px 0 0;">${nominatorEmail}</p>
+                    <p style="font-size: 13px; color: var(--text-muted);">${faculty}${department ? ' — ' + department : ''}</p>
                 </div>
                 <div>
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Date Submitted</span>
@@ -179,7 +196,7 @@ function openNominationModal(nomination = null) {
             <div>
                 <h4 style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px;">Achievement Write-up</h4>
                 <div style="background: var(--bg-slate); padding: 16px; border-radius: 10px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
-                    ${nomination.reason || 'No write-up provided.'}
+                    ${reason}
                 </div>
             </div>
 
@@ -187,7 +204,7 @@ function openNominationModal(nomination = null) {
             ${nomination.whatsapp_contact ? `
             <div>
                 <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">WhatsApp Contact</span>
-                <p style="font-weight: 600; margin: 4px 0 0;">${nomination.whatsapp_contact}</p>
+                <p style="font-weight: 600; margin: 4px 0 0;">${whatsapp}</p>
             </div>` : ''}
 
             <div style="margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
