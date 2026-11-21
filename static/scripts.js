@@ -819,7 +819,31 @@ async function loadResults() {
         const total=(v.data||[]).length;put('total-categories',new Set([...(c.data||[]).map(x=>x.name),...rows.map(x=>x.category)]).size);put('total-finalists',rows.length);put('results-total-votes',total);
         const filter=()=>{const q=(document.getElementById('results-search')?.value||'').toLowerCase();const cat=document.getElementById('results-category-filter')?.value||'';const pos=document.getElementById('results-status-filter')?.value||'';return rows.filter(x=>x.name.toLowerCase().includes(q)&&(!cat||x.category===cat)&&(!pos||pos==='Finalist'||x.status.toLowerCase()===pos.toLowerCase()));};
         const categories=[...new Set(rows.map(x=>x.category))];const select=document.getElementById('results-category-filter');if(select){const old=select.value;select.innerHTML='<option value="">All Categories</option>'+categories.map(x=>'<option>'+escapeHTML(x)+'</option>').join('');select.value=categories.includes(old)?old:'';}
-        const render=()=>{body.innerHTML='';if(!total){body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">No voting records yet. Official rankings will appear after votes are recorded.</td></tr>';put('results-count','0 Results');const w=document.getElementById('winner-grid');if(w)w.textContent='No category winners yet.';return;}const list=filter().sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes);list.forEach(x=>{const tr=document.createElement('tr');tr.innerHTML='<td>—</td><td>'+escapeHTML(x.name)+'</td><td>'+escapeHTML(x.category)+'</td><td>'+x.votes+'</td><td>—</td><td>'+escapeHTML(x.status)+'</td><td>—</td>';body.appendChild(tr);});put('results-count',list.length+' Results');};
+        const render=()=>{
+            body.innerHTML='';
+            const winnerGrid=document.getElementById('winner-grid');
+            if(!total){
+                body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">No voting records yet. Official rankings will appear after votes are recorded.</td></tr>';
+                put('results-count','0 Results');
+                if(winnerGrid)winnerGrid.textContent='No category winners yet.';
+                return;
+            }
+            const totals={};
+            rows.forEach(row=>totals[row.category]=(totals[row.category]||0)+row.votes);
+            const ranked=[...rows].sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes||a.name.localeCompare(b.name));
+            const leaders=new Map();
+            ranked.forEach(row=>{if(!leaders.has(row.category))leaders.set(row.category,row);});
+            const list=filter().sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes||a.name.localeCompare(b.name));
+            list.forEach(row=>{
+                const rank=ranked.filter(other=>other.category===row.category&&other.votes>row.votes).length+1;
+                const percentage=totals[row.category]?(row.votes/totals[row.category]*100).toFixed(1):'0.0';
+                const tr=document.createElement('tr');
+                tr.innerHTML='<td>'+rank+'</td><td>'+escapeHTML(row.name)+'</td><td>'+escapeHTML(row.category)+'</td><td>'+row.votes+'</td><td>'+percentage+'%</td><td>'+escapeHTML(row.status)+'</td><td>—</td>';
+                body.appendChild(tr);
+            });
+            put('results-count',list.length+' Results');
+            if(winnerGrid)winnerGrid.innerHTML=[...leaders.values()].map(row=>'<div class="card"><h4>'+escapeHTML(row.category)+'</h4><strong>'+escapeHTML(row.name)+'</strong><p>'+row.votes+' votes</p></div>').join('')||'No category winners yet.';
+        };
         ['results-search','results-category-filter','results-status-filter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='results-search'?'input':'change',render));
         document.getElementById('refresh-results')?.addEventListener('click',loadResults);
         document.getElementById('export-results')?.addEventListener('click',()=>{if(!total){alert('There are no results to export yet.');return;}const data=[['Nominee','Category','Votes','Status'],...filter().map(x=>[x.name,x.category,x.votes,x.status])];const csv=data.map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const link=document.createElement('a');link.href=url;link.download='toyp-results.csv';link.click();URL.revokeObjectURL(url);});
