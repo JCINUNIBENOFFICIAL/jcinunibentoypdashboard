@@ -1492,8 +1492,23 @@ function openEditFinalistModal(name, ids) {
         const filteredExportBtn = document.getElementById('export-filtered-nominations-btn');
         if (filteredExportBtn) {
             filteredExportBtn.onclick = () => {
-                const filtered = window.__FILTERED_NOMINATIONS__ || [];
-                if (!filtered.length) return alert('There are no filtered nominations to export.');
+                // Reapply the current controls at export time so the CSV
+                // always matches the filters currently shown on screen.
+                const all = window.__ALL_NOMINATIONS__ || [];
+                const nameSearch = (document.getElementById('name-search')?.value || '').trim().toLowerCase();
+                const categoryVal = document.getElementById('category-filter')?.value || 'all';
+                const statusVal = document.getElementById('status-filter')?.value || 'all';
+
+                const filtered = all.filter(nom => {
+                    const matchesName = !nameSearch ||
+                        (nom.nominee_name || '').toLowerCase().includes(nameSearch);
+                    const matchesCategory = categoryVal === 'all' || nom.category === categoryVal;
+                    const matchesStatus = statusVal === 'all' || nom.status === statusVal;
+                    return matchesName && matchesCategory && matchesStatus;
+                });
+
+                window.__FILTERED_NOMINATIONS__ = filtered;
+                if (!filtered.length) return alert('There are no nominations matching the current filters to export.');
                 exportCSV(filtered, 'filtered_nominations');
             };
         }
