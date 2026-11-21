@@ -1479,6 +1479,25 @@ function openEditFinalistModal(name, ids) {
         if (!tbody) return;
         tbody.innerHTML = '';
 
+        // Bind export controls before the empty-results return so Export All
+        // remains available even when the current filters match no rows.
+        const exportBtn = document.getElementById('export-nominations-btn');
+        if (exportBtn) {
+            exportBtn.onclick = () => {
+                const all = window.__ALL_NOMINATIONS__ || [];
+                if (!all.length) return alert('No data to export');
+                exportCSV(all, 'all_nominations');
+            };
+        }
+        const filteredExportBtn = document.getElementById('export-filtered-nominations-btn');
+        if (filteredExportBtn) {
+            filteredExportBtn.onclick = () => {
+                const filtered = window.__FILTERED_NOMINATIONS__ || [];
+                if (!filtered.length) return alert('There are no filtered nominations to export.');
+                exportCSV(filtered, 'filtered_nominations');
+            };
+        }
+
         const groupArray = Object.values(groups);
         if (groupArray.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" style="padding:15px; color:var(--text-muted); text-align:center;">No nominees match your filters.</td></tr>';
