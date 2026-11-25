@@ -2,7 +2,7 @@
     <div class="view-header">
         <div>
             <h1>Voting Operations</h1>
-            <p>Manage the voting window. Global vote statistics remain restricted until the administrator-only reporting endpoint is deployed.</p>
+            <p>Manage the voting window and monitor administrator-only aggregate voting statistics.</p>
         </div>
         <div class="header-actions">
             <span class="status-badge" id="v-status">
@@ -105,7 +105,7 @@
     <div class="card" style="margin-top:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <h3>Recent Voting Activity</h3>
-            <span style="font-size:13px;color:var(--text-muted);">Privacy-safe activity summary pending</span>
+            <span style="font-size:13px;color:var(--text-muted);">Privacy-safe activity summary</span>
         </div>
         <div class="table-responsive">
             <table style="width:100%;border-collapse:collapse;">
@@ -118,7 +118,7 @@
                     </tr>
                 </thead>
                 <tbody id="recent-votes-tbody">
-                    <tr><td colspan="3" style="padding:15px;text-align:center;color:var(--text-muted);">Activity is unavailable until a secured administrator reporting endpoint is configured.</td></tr>
+                    <tr><td colspan="3" style="padding:15px;text-align:center;color:var(--text-muted);">Loading privacy-safe administrator activity…</td></tr>
                 </tbody>
             </table>
         </div>
