@@ -80,6 +80,19 @@ REVOKE ALL ON FUNCTION public.get_admin_voting_summary() FROM anon;
 REVOKE ALL ON FUNCTION public.get_admin_voting_summary() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_admin_voting_summary() TO authenticated;
 
+-- Close two existing public data paths identified during the security audit.
+-- count_unique_voters() is SECURITY DEFINER and has no caller authorization check.
+-- No dashboard code in this repository calls it; the new summary RPC replaces that usage.
+REVOKE ALL ON FUNCTION public.count_unique_voters() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.count_unique_voters() FROM anon;
+REVOKE ALL ON FUNCTION public.count_unique_voters() FROM authenticated;
+
+-- vote_details includes voter email, UUID, IP address, and user-agent fields.
+-- Repository code does not consume this view; remove direct Data API access.
+REVOKE ALL ON TABLE public.vote_details FROM PUBLIC;
+REVOKE ALL ON TABLE public.vote_details FROM anon;
+REVOKE ALL ON TABLE public.vote_details FROM authenticated;
+
 -- Post-deployment verification:
 -- * admin@jcinuniben.com receives aggregates.
 -- * anon and all other authenticated users are denied.
