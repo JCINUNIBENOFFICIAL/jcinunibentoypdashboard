@@ -841,8 +841,8 @@ navItems.forEach(item => {
 
                 // Count finalists for this category
                 const finalistCount = finalistList.filter(n => n.category === cat.name).length;
-                const statusText = finalistCount > 0 ? 'Completed' : 'Not Started';
-                const statusClass = finalistCount > 0 ? 'status-badge verified' : 'status-badge';
+                const statusText = finalistCount > 0 ? 'Stage labels exist — review required' : 'Not Started';
+                const statusClass = finalistCount > 0 ? 'status-badge' : 'status-badge';
 
                 const card = document.createElement('div');
                 card.className = 'category-card';
