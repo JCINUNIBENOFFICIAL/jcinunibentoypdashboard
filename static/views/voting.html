@@ -38,7 +38,7 @@
                 <p id="voting-banner-text" style="color:var(--text-muted);">Public voting is currently disabled.</p>
             </div>
             <div style="display:flex;gap:10px;align-items:center;">
-                <input type="datetime-local" id="close-time-input" style="padding:6px;border:1px solid var(--border-color);border-radius:6px;">
+                <input type="datetime-local" id="close-time-input" aria-label="Voting scheduled close date and time" style="padding:6px;border:1px solid var(--border-color);border-radius:6px;">
                 <button class="view-btn" id="set-close-time-btn">Set Close Time</button>
                 <button class="btn-primary" id="toggle-voting">
                     <i class='bx bx-power-off'></i> Open Voting
@@ -72,7 +72,7 @@
         </div>
         <div class="stat-card">
             <div class="stat-info">
-                <span>Time Remaining</span>
+                <span>Scheduled Close</span>
                 <h2 id="voting-timer">--</h2>
             </div>
             <i class='bx bx-timer'></i>
