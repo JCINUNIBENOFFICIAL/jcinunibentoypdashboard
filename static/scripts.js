@@ -884,60 +884,180 @@ navItems.forEach(item => {
     }
 
 async function loadResults() {
-    const body = document.getElementById('results-table-body'); if (!body) return;
-    const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
-    body.innerHTML='<tr><td colspan="7">Loading results...</td></tr>';
+    const body = document.getElementById('results-table-body');
+    if (!body) return;
+    const put = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    };
+    body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">Loading verified voting results…</td></tr>';
+
     try {
-        const [n,v,c] = await Promise.all([
-            supabase.from('nominations').select('id,nominee_name,category,status,ready_for_voting').eq('ready_for_voting',true),
-            supabase.from('votes').select('nomination_id'),
-            supabase.from('categories').select('name')
+        const [nominees, categories, summaryResult] = await Promise.all([
+            fetchAllRows(() => supabase.from('nominations')
+                .select('id, nominee_name, category, status, ready_for_voting')
+                .eq('ready_for_voting', true)),
+            fetchAllRows(() => supabase.from('categories').select('name')),
+            supabase.rpc('get_admin_voting_summary')
         ]);
-        if(n.error)throw n.error;if(c.error)throw c.error;
-        const voteAccessError=v.error;
-        const votes=new Map();(v.data||[]).forEach(x=>votes.set(String(x.nomination_id),(votes.get(String(x.nomination_id))||0)+1));
-        const rows=(n.data||[]).map(x=>({id:x.id,name:x.nominee_name||'Unnamed nominee',category:x.category||'Uncategorised',status:x.status||'Finalist',votes:votes.get(String(x.id))||0}));
-        const total=(v.data||[]).length;
-        const votesUnavailable=!!voteAccessError;put('total-categories',new Set([...(c.data||[]).map(x=>x.name),...rows.map(x=>x.category)]).size);put('total-finalists',rows.length);put('results-total-votes',total);
-        const filter=()=>{const q=(document.getElementById('results-search')?.value||'').toLowerCase();const cat=document.getElementById('results-category-filter')?.value||'';const pos=document.getElementById('results-status-filter')?.value||'';return rows.filter(x=>x.name.toLowerCase().includes(q)&&(!cat||x.category===cat)&&(!pos||pos==='Finalist'||x.status.toLowerCase()===pos.toLowerCase()));};
-        const categories=[...new Set(rows.map(x=>x.category))];const select=document.getElementById('results-category-filter');if(select){const old=select.value;select.innerHTML='<option value="">All Categories</option>'+categories.map(x=>'<option>'+escapeHTML(x)+'</option>').join('');select.value=categories.includes(old)?old:'';}
-        const render=()=>{
-            body.innerHTML='';
-            const winnerGrid=document.getElementById('winner-grid');
-            if(votesUnavailable){
-                body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">Voting records are currently restricted by database permissions. Nominee data is available, but rankings cannot be calculated.</td></tr>';
-                put('results-count','Voting data restricted');
-                if(winnerGrid)winnerGrid.textContent='Winner information is unavailable until vote access is restored.';
-                return;
-            }
-            if(!total){
-                body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">No voting records yet. Official rankings will appear after votes are recorded.</td></tr>';
-                put('results-count','0 Results');
-                if(winnerGrid)winnerGrid.textContent='No category winners yet.';
-                return;
-            }
-            const totals={};
-            rows.forEach(row=>totals[row.category]=(totals[row.category]||0)+row.votes);
-            const ranked=[...rows].sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes||a.name.localeCompare(b.name));
-            const leaders=new Map();
-            ranked.forEach(row=>{if(!leaders.has(row.category))leaders.set(row.category,row);});
-            const list=filter().sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes||a.name.localeCompare(b.name));
-            list.forEach(row=>{
-                const rank=ranked.filter(other=>other.category===row.category&&other.votes>row.votes).length+1;
-                const percentage=totals[row.category]?(row.votes/totals[row.category]*100).toFixed(1):'0.0';
-                const tr=document.createElement('tr');
-                tr.innerHTML='<td>'+rank+'</td><td>'+escapeHTML(row.name)+'</td><td>'+escapeHTML(row.category)+'</td><td>'+row.votes+'</td><td>'+percentage+'%</td><td>'+escapeHTML(row.status)+'</td><td>—</td>';
-                body.appendChild(tr);
+        if (summaryResult.error || !summaryResult.data) {
+            throw new Error('Global vote totals are unavailable. The administrator-only voting summary must be deployed before rankings can be calculated.');
+        }
+
+        const summary = summaryResult.data;
+        const countRows = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
+        const counts = new Map();
+        countRows.forEach(row => {
+            counts.set(String(row.nomination_id), Number(row.vote_count || 0));
+        });
+        const rows = (nominees || []).map(record => {
+            const name = record.nominee_name || 'Unnamed nominee';
+            const category = record.category || 'Uncategorised';
+            return {
+                id: record.id,
+                name,
+                category,
+                status: record.status || 'Ready for voting',
+                votes: counts.get(String(record.id)) || 0
+            };
+        });
+
+        const totalVotes = Number(summary.total_votes || 0);
+        put('total-categories', new Set([...(categories || []).map(item => item.name), ...rows.map(item => item.category)]).size);
+        put('total-finalists', rows.length);
+        put('results-total-votes', totalVotes.toLocaleString());
+
+        const categorySelect = document.getElementById('results-category-filter');
+        const uniqueCategories = [...new Set(rows.map(row => row.category))].sort((a,b) => a.localeCompare(b));
+        if (categorySelect) {
+            const previous = categorySelect.value;
+            categorySelect.innerHTML = '<option value="">All Categories</option>' +
+                uniqueCategories.map(category => '<option value="' + escapeHTML(category) + '">' + escapeHTML(category) + '</option>').join('');
+            categorySelect.value = uniqueCategories.includes(previous) ? previous : '';
+        }
+
+        const render = () => {
+            const query = (document.getElementById('results-search')?.value || '').trim().toLowerCase();
+            const category = categorySelect?.value || '';
+            const position = document.getElementById('results-status-filter')?.value || '';
+            const filtered = rows.filter(row =>
+                row.name.toLowerCase().includes(query) &&
+                (!category || row.category === category) &&
+                (!position || position === 'Finalist' || row.status.toLowerCase() === position.toLowerCase())
+            );
+
+            const categoryTotals = new Map();
+            rows.forEach(row => categoryTotals.set(row.category, (categoryTotals.get(row.category) || 0) + row.votes));
+            const ranked = [...filtered].sort((a,b) =>
+                a.category.localeCompare(b.category) || b.votes-a.votes || a.name.localeCompare(b.name)
+            );
+            const leaders = new Map();
+            ranked.forEach(row => {
+                if (row.votes <= 0) return;
+                const current = leaders.get(row.category);
+                if (!current || row.votes > current[0].votes) leaders.set(row.category, [row]);
+                else if (row.votes === current[0].votes) current.push(row);
             });
-            put('results-count',list.length+' Results');
-            if(winnerGrid)winnerGrid.innerHTML=[...leaders.values()].map(row=>'<div class="card"><h4>'+escapeHTML(row.category)+'</h4><strong>'+escapeHTML(row.name)+'</strong><p>'+row.votes+' votes</p></div>').join('')||'No category winners yet.';
+
+            body.innerHTML = '';
+            if (!ranked.length) {
+                body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">No nominees are currently marked ready for voting.</td></tr>';
+            } else {
+                ranked.forEach(row => {
+                    const sameCategory = rows.filter(other => other.category === row.category);
+                    const rank = sameCategory.filter(other => other.votes > row.votes).length + 1;
+                    const denominator = categoryTotals.get(row.category) || 0;
+                    const percentage = denominator ? (row.votes / denominator * 100).toFixed(1) : '0.0';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td>' + rank + '</td>' +
+                        '<td>' + escapeHTML(row.name) + '</td>' +
+                        '<td>' + escapeHTML(row.category) + '</td>' +
+                        '<td>' + row.votes.toLocaleString() + '</td>' +
+                        '<td>' + percentage + '%</td>' +
+                        '<td>' + escapeHTML(row.status) + '</td><td>—</td>';
+                    body.appendChild(tr);
+                });
+            }
+            put('results-count', ranked.length + ' Results');
+            const winnerGrid = document.getElementById('winner-grid');
+            if (winnerGrid) {
+                winnerGrid.innerHTML = leaders.size
+                    ? [...leaders.entries()].map(([category, tiedLeaders]) =>
+                        '<div class="card"><h4>' + escapeHTML(category) + '</h4>' +
+                        (tiedLeaders.length > 1 ? '<strong>Joint vote leaders</strong>' : '<strong>Leading vote-getter</strong>') +
+                        tiedLeaders.map(row => '<p>' + escapeHTML(row.name) + ' — ' + row.votes.toLocaleString() + ' votes</p>').join('') +
+                        '<small style="color:var(--text-muted);">Uncertified voting position; not an award decision.</small></div>'
+                    ).join('')
+                    : 'No category has recorded votes yet. No winners are declared by this dashboard.';
+            }
         };
-        ['results-search','results-category-filter','results-status-filter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='results-search'?'input':'change',render));
-        document.getElementById('refresh-results')?.addEventListener('click',loadResults);
-        document.getElementById('export-results')?.addEventListener('click',()=>{if(!total){alert('There are no results to export yet.');return;}const data=[['Nominee','Category','Votes','Status'],...filter().map(x=>[x.name,x.category,x.votes,x.status])];const csv=data.map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const link=document.createElement('a');link.href=url;link.download='toyp-results.csv';link.click();URL.revokeObjectURL(url);});
-        const publish=document.getElementById('publish-results');if(publish){publish.disabled=true;publish.title='Publishing is disabled in this read-only dashboard.';publish.textContent='Publishing Disabled (Read Only)';}
+
+        ['results-search','results-category-filter','results-status-filter'].forEach(id => {
+            const element = document.getElementById(id);
+            if (!element || element.dataset.resultsBound === 'true') return;
+            element.addEventListener(id === 'results-search' ? 'input' : 'change', render);
+            element.dataset.resultsBound = 'true';
+        });
+        const refresh = document.getElementById('refresh-results');
+        if (refresh) refresh.onclick = loadResults;
+        const exportButton = document.getElementById('export-results');
+        if (exportButton) {
+            exportButton.disabled = false;
+            exportButton.title = 'Download the currently filtered results with aggregate vote counts only.';
+            exportButton.onclick = () => {
+                const query = (document.getElementById('results-search')?.value || '').trim().toLowerCase();
+                const selectedCategory = categorySelect?.value || '';
+                const selectedPosition = document.getElementById('results-status-filter')?.value || '';
+                const exportRows = rows.filter(row =>
+                    row.name.toLowerCase().includes(query) &&
+                    (!selectedCategory || row.category === selectedCategory) &&
+                    (!selectedPosition || selectedPosition === 'Finalist' || row.status.toLowerCase() === selectedPosition.toLowerCase())
+                );
+                const totals = new Map();
+                rows.forEach(row => totals.set(row.category, (totals.get(row.category) || 0) + row.votes));
+                const csvData = [
+                    ['Nominee','Category','Votes','Category Vote Share','Status'],
+                    ...exportRows.map(row => [
+                        row.name,
+                        row.category,
+                        row.votes,
+                        (totals.get(row.category) ? (row.votes / totals.get(row.category) * 100).toFixed(1) : '0.0') + '%',
+                        row.status
+                    ])
+                ];
+                const csv = '\uFEFF' + csvData.map(line => line.map(value => '"' + String(value ?? '').replace(/"/g,'""') + '"').join(',')).join('\r\n');
+                const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'toyp-voting-results-' + new Date().toISOString().slice(0,10) + '.csv';
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+        }
+        const publishButton = document.getElementById('publish-results');
+        if (publishButton) {
+            publishButton.disabled = true;
+            publishButton.title = 'Publishing remains disabled pending formal result verification and approval.';
+            publishButton.textContent = 'Publishing Disabled';
+        }
         render();
-    } catch(error) { console.error('Results load failed',error);body.innerHTML='<tr><td colspan="7">Could not load results. Check database access.</td></tr>';put('total-categories','—');put('total-finalists','—');put('results-total-votes','—'); }
+    } catch (error) {
+        console.warn('Results cannot yet be calculated:', error);
+        body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">' +
+            escapeHTML(error.message || 'Global voting data is unavailable. Secure administrator reporting is required.') +
+            '</td></tr>';
+        put('total-categories', '—');
+        put('total-finalists', '—');
+        put('results-total-votes', 'Restricted');
+        put('results-count', 'Results unavailable');
+        const winnerGrid = document.getElementById('winner-grid');
+        if (winnerGrid) winnerGrid.textContent = 'Winner information is unavailable until secure administrator voting reports are enabled.';
+        const exportButton = document.getElementById('export-results');
+        if (exportButton) exportButton.disabled = true;
+        const publishButton = document.getElementById('publish-results');
+        if (publishButton) publishButton.disabled = true;
+    }
 }
 
 async function loadNominationControl() {
@@ -1013,109 +1133,238 @@ async function loadNominationControl() {
 }
 
 async function loadVoting() {
+    const get = id => document.getElementById(id);
+    const statusBadge = get('v-status');
+    const banner = get('voting-banner');
+    const bannerText = get('voting-banner-text');
+    const openButton = get('open-voting-btn');
+    const closeButton = get('close-voting-btn');
+    const scheduleButton = get('save-voting-schedule');
+    const startTimeInput = get('start-time-input');
+    const closeTimeInput = get('close-time-input');
+    const totalVotesEl = get('total-votes');
+    const todayVotesEl = get('votes-today');
+    const uniqueVotersEl = get('unique-voters');
+    const nomineeBody = get('nominee-votes-tbody');
+    const recentBody = get('recent-votes-tbody');
+
+    const setStatsRestricted = () => {
+        if (totalVotesEl) totalVotesEl.textContent = 'Restricted';
+        if (todayVotesEl) todayVotesEl.textContent = 'Restricted';
+        if (uniqueVotersEl) uniqueVotersEl.textContent = 'Restricted';
+        if (nomineeBody) nomineeBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Global nominee vote counts require a secured administrator-only summary endpoint.</td></tr>';
+        if (recentBody) recentBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Recent activity is unavailable until a privacy-safe administrator endpoint is configured.</td></tr>';
+    };
+
+    const toLocalInputValue = value => {
+        if (!value || !Number.isFinite(Date.parse(value))) return '';
+        const date = new Date(value);
+        return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    };
+    const fromLocalInputValue = value => {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+    };
+    const formatLocal = value => value && Number.isFinite(Date.parse(value))
+        ? new Date(value).toLocaleString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+        })
+        : 'Not set';
+
+    const renderStatus = (isOpen, startAt, closeAt) => {
+        const validWindow = startAt && closeAt && Number.isFinite(Date.parse(startAt)) &&
+            Number.isFinite(Date.parse(closeAt)) && Date.parse(startAt) < Date.parse(closeAt) &&
+            Date.parse(closeAt) > Date.now();
+        const now = Date.now();
+        const beforeStart = validWindow && now < Date.parse(startAt);
+        const afterClose = validWindow && now >= Date.parse(closeAt);
+        if (statusBadge) statusBadge.textContent = isOpen ? 'Voting Enabled' : 'Voting Closed';
+        if (banner) {
+            banner.style.borderLeftColor = isOpen ? '#16a34a' : '#ef4444';
+            banner.setAttribute('aria-label', isOpen ? 'Manual voting switch: ON' : 'Manual voting switch: OFF');
+        }
+        if (bannerText) {
+            if (!validWindow) bannerText.textContent = 'Voting is blocked until valid opening and closing times are saved. Configure the schedule, then enable the manual voting switch.';
+            else if (!isOpen) bannerText.textContent = 'The manual voting switch is OFF. Public voting remains closed.';
+            else if (beforeStart) bannerText.textContent = 'The manual switch is ON, but the database will block ballots until the scheduled opening time.';
+            else if (afterClose) bannerText.textContent = 'The scheduled closing time has passed. The database blocks new ballots even if the manual switch remains ON. Turn the switch OFF.';
+            else bannerText.textContent = 'Voting is enabled and within its scheduled window. Authenticated voters may cast one ballot per category for eligible nominees.';
+        }
+        if (openButton) openButton.disabled = isOpen || !validWindow;
+        if (closeButton) closeButton.disabled = !isOpen;
+        const timer = get('voting-timer');
+        if (timer) {
+            timer.textContent = formatLocal(closeAt);
+            timer.title = 'Scheduled closing time. The database enforces the opening and closing timestamps on every vote.';
+        }
+        const startDisplay = get('voting-start-display');
+        const closeDisplay = get('voting-close-display');
+        if (startDisplay) startDisplay.textContent = formatLocal(startAt);
+        if (closeDisplay) closeDisplay.textContent = formatLocal(closeAt);
+    };
+
+    if (bannerText) bannerText.textContent = 'Checking voting settings…';
+    [openButton, closeButton, scheduleButton].forEach(button => { if (button) button.disabled = true; });
+
     try {
-        // 1. Fetch settings
-        const { data: settings, error: setErr } = await supabase
-            .from('settings')
-            .select('key, value');
-
-        if (setErr) {
-            console.error('Settings fetch error:', setErr);
-            document.getElementById('voting-banner-text').textContent = '⚠️ Error loading settings. Check RLS policies.';
-            return;
+        const { data: settings, error } = await supabase.from('settings')
+            .select('key,value')
+            .in('key', ['voting_open', 'voting_start_time', 'voting_close_time']);
+        if (error) throw error;
+        const settingMap = new Map((settings || []).map(item => [item.key, item.value]));
+        for (const key of ['voting_open', 'voting_start_time', 'voting_close_time']) {
+            if (!settingMap.has(key)) throw new Error('The ' + key + ' setting is missing.');
         }
 
-        // ... rest of your existing code for settings, banner, etc.
+        let isOpen = String(settingMap.get('voting_open')).toLowerCase() === 'true';
+        let startAt = settingMap.get('voting_start_time') || '';
+        let closeAt = settingMap.get('voting_close_time') || '';
+        if (startTimeInput) startTimeInput.value = toLocalInputValue(startAt);
+        if (closeTimeInput) closeTimeInput.value = toLocalInputValue(closeAt);
+        renderStatus(isOpen, startAt, closeAt);
 
-        // 2. Fetch stats with error handling
-        let totalVotes = 0, todayVotes = 0, uniqueVoters = 0;
-        try {
-            const { count, error } = await supabase.from('votes').select('*', { count: 'exact', head: true });
-            if (error) throw error;
-            totalVotes = count || 0;
-        } catch (e) { console.error('Total votes error:', e); }
+        const updateSetting = async (key, value) => {
+            const { data, error: updateError } = await supabase.from('settings')
+                .update({ value: String(value) })
+                .eq('key', key)
+                .select('key,value')
+                .maybeSingle();
+            if (updateError) throw updateError;
+            if (!data) throw new Error('No setting was updated. Confirm administrator permissions and that the setting exists.');
+            return data.value;
+        };
 
-        try {
-            const { count, error } = await supabase.from('votes')
-                .select('*', { count: 'exact', head: true })
-                .gte('created_at', new Date().toISOString().slice(0,10));
-            if (error) throw error;
-            todayVotes = count || 0;
-        } catch (e) { console.error('Today votes error:', e); }
-
-        try {
-            const { data, error } = await supabase.rpc('count_unique_voters');
-            if (error) throw error;
-            uniqueVoters = data || 0;
-        } catch (e) { console.error('Unique voters error:', e); }
-
-        document.getElementById('total-votes').textContent = totalVotes;
-        document.getElementById('votes-today').textContent = todayVotes;
-        document.getElementById('unique-voters').textContent = uniqueVoters;
-
-        // 3. Per‑nominee counts with fallback
-        const nomineeTbody = document.getElementById('nominee-votes-tbody');
-        try {
-            const { data: nomineeCounts, error } = await supabase.rpc('get_nominee_vote_counts');
-            if (error) throw error;
-            nomineeTbody.innerHTML = '';
-            if (nomineeCounts && nomineeCounts.length) {
-                nomineeCounts.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding:10px;">${row.nominee_name}</td>
-                        <td style="padding:10px;">${row.category}</td>
-                        <td style="padding:10px;text-align:center;font-weight:600;">${row.vote_count}</td>
-                    `;
-                    nomineeTbody.appendChild(tr);
-                });
-            } else {
-                nomineeTbody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;color:var(--text-muted);">No votes yet.</td></tr>';
+        const setVoting = async nextOpen => {
+            if (nextOpen && (!startAt || !closeAt || !Number.isFinite(Date.parse(startAt)) ||
+                !Number.isFinite(Date.parse(closeAt)) || Date.parse(startAt) >= Date.parse(closeAt))) {
+                window.alert('Save a valid voting schedule before enabling voting.');
+                return;
             }
-        } catch (e) {
-            console.error('Nominee counts error:', e);
-            nomineeTbody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;color:red;">Could not load counts. Check RPC permissions.</td></tr>';
-        }
-
-        // 4. Recent votes with fallback
-        const recentTbody = document.getElementById('recent-votes-tbody');
-        try {
-            const { data: recentVotes, error } = await supabase
-                .from('vote_details')
-                .select('voter_email, category, nominee_name:nomination_id(nominee_name), created_at')
-                .order('created_at', { ascending: false })
-                .limit(50);
-
-            if (error) throw error;
-            recentTbody.innerHTML = '';
-            if (recentVotes && recentVotes.length) {
-                recentVotes.forEach(v => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding:10px;">${new Date(v.created_at).toLocaleString()}</td>
-                        <td style="padding:10px;">${v.voter_email}</td>
-                        <td style="padding:10px;">${v.category}</td>
-                        <td style="padding:10px;">${v.nominee_name}</td>
-                    `;
-                    recentTbody.appendChild(tr);
-                });
-            } else {
-                recentTbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;color:var(--text-muted);">No recent votes.</td></tr>';
+            if (!window.confirm(nextOpen
+                ? 'Enable the manual voting switch? The database will still block ballots outside the saved schedule.'
+                : 'Close public voting now? New ballots will be blocked immediately.')) return;
+            [openButton, closeButton].forEach(button => { if (button) button.disabled = true; });
+            if (bannerText) bannerText.textContent = nextOpen ? 'Enabling voting…' : 'Closing voting…';
+            try {
+                await updateSetting('voting_open', nextOpen ? 'true' : 'false');
+                isOpen = nextOpen;
+                renderStatus(isOpen, startAt, closeAt);
+            } catch (updateError) {
+                console.error('Voting control update failed:', updateError);
+                if (bannerText) bannerText.textContent = 'Voting status was not changed. Check administrator permissions.';
+                window.alert('Could not update voting. No setting was changed.');
+                renderStatus(isOpen, startAt, closeAt);
             }
-        } catch (e) {
-            console.error('Recent votes error:', e);
-            recentTbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;color:red;">Error loading activity.</td></tr>';
+        };
+
+        if (openButton) openButton.onclick = () => setVoting(true);
+        if (closeButton) closeButton.onclick = () => setVoting(false);
+
+        if (scheduleButton) {
+            scheduleButton.disabled = false;
+            scheduleButton.onclick = async () => {
+                const nextStart = fromLocalInputValue(startTimeInput?.value);
+                const nextClose = fromLocalInputValue(closeTimeInput?.value);
+                if (!nextStart || !nextClose) {
+                    window.alert('Enter both the opening and closing date/time.');
+                    return;
+                }
+                if (Date.parse(nextStart) >= Date.parse(nextClose)) {
+                    window.alert('The closing date/time must be later than the opening date/time.');
+                    return;
+                }
+                if (Date.parse(nextClose) <= Date.now()) {
+                    window.alert('The closing date/time must be in the future.');
+                    return;
+                }
+                scheduleButton.disabled = true;
+                try {
+                    if (isOpen) {
+                        await updateSetting('voting_open', 'false');
+                        isOpen = false;
+                    }
+                    startAt = await updateSetting('voting_start_time', nextStart);
+                    closeAt = await updateSetting('voting_close_time', nextClose);
+                    renderStatus(isOpen, startAt, closeAt);
+                    window.alert('Voting schedule saved. Voting remains closed until you explicitly enable the manual switch.');
+                } catch (updateError) {
+                    console.error('Voting schedule update failed:', updateError);
+                    window.alert('The schedule could not be fully saved. The manual voting switch has been left OFF; review the saved values and try again.');
+                    try {
+                        await updateSetting('voting_open', 'false');
+                        isOpen = false;
+                    } catch (closeError) {
+                        console.error('Could not confirm voting is closed after schedule update failure:', closeError);
+                    }
+                    renderStatus(isOpen, startAt, closeAt);
+                } finally {
+                    scheduleButton.disabled = false;
+                }
+            };
         }
 
-        // 5. Re‑attach button handlers (they already exist, but ensure they are not overwritten multiple times)
-        // Remove any duplicate listeners by using `onclick` assignment directly (already done)
-        // The rest of your handlers remain unchanged.
+        // Use only the administrator-gated aggregate RPC. Never read vote_details or
+        // treat the current voter's RLS-filtered rows as global totals.
+        const { data: summary, error: summaryError } = await supabase.rpc('get_admin_voting_summary');
+        if (summaryError || !summary) {
+            console.warn('Admin voting summary is not available:', summaryError);
+            setStatsRestricted();
+        } else {
+            if (totalVotesEl) totalVotesEl.textContent = Number(summary.total_votes || 0).toLocaleString();
+            if (todayVotesEl) todayVotesEl.textContent = Number(summary.votes_today || 0).toLocaleString();
+            if (uniqueVotersEl) uniqueVotersEl.textContent = Number(summary.unique_voters || 0).toLocaleString();
 
+            if (nomineeBody) {
+                const counts = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
+                nomineeBody.innerHTML = counts.length ? counts.map(row =>
+                    '<tr><td style="padding:10px;">' + escapeHTML(row.nominee_name || 'Unnamed nominee') +
+                    '</td><td style="padding:10px;">' + escapeHTML(row.category || 'Uncategorised') +
+                    '</td><td style="padding:10px;text-align:center;font-weight:600;">' +
+                    Number(row.vote_count || 0).toLocaleString() + '</td></tr>'
+                ).join('') : '<tr><td colspan="3" style="padding:15px;text-align:center;">No votes have been recorded.</td></tr>';
+            }
+            if (recentBody) {
+                const activity = Array.isArray(summary.recent_activity) ? summary.recent_activity : [];
+                recentBody.innerHTML = activity.length ? activity.map(row =>
+                    '<tr><td style="padding:10px;">' + escapeHTML(row.created_at ? new Date(row.created_at).toLocaleString() : '—') +
+                    '</td><td style="padding:10px;">' + escapeHTML(row.category || '—') +
+                    '</td><td style="padding:10px;">' + escapeHTML(row.nominee_name || '—') + '</td></tr>'
+                ).join('') : '<tr><td colspan="3" style="padding:15px;text-align:center;">No recent votes.</td></tr>';
+            }
+        }
+
+        const exportVotes = get('export-votes-btn');
+        if (exportVotes) {
+            exportVotes.disabled = !!summaryError || !summary;
+            exportVotes.title = 'Download aggregate nominee/category vote counts. No voter identity data is included.';
+            exportVotes.onclick = () => {
+                if (!summary || summaryError) return;
+                const rows = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
+                const csvRows = [
+                    ['Nominee','Category','Vote Count'],
+                    ...rows.map(row => [row.nominee_name || '', row.category || '', Number(row.vote_count || 0)])
+                ];
+                const csv = '\uFEFF' + csvRows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g,'""') + '"').join(',')).join('\r\n');
+                const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'toyp-vote-summary-' + new Date().toISOString().slice(0,10) + '.csv';
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+        }
+        const refresh = get('refresh-stats-btn');
+        if (refresh) refresh.onclick = loadVoting;
     } catch (error) {
-        console.error('loadVoting fatal error:', error);
-        // Display a generic error banner
-        const bannerText = document.getElementById('voting-banner-text');
-        if (bannerText) bannerText.textContent = '❌ Failed to load voting data. Check console for details.';
+        console.error('Voting dashboard load failed:', error);
+        if (bannerText) bannerText.textContent = 'Unable to verify voting settings. Voting controls are disabled.';
+        if (statusBadge) statusBadge.textContent = 'Status Unavailable';
+        [openButton, closeButton, scheduleButton, get('toggle-voting'), get('export-votes-btn')].forEach(button => {
+            if (button) button.disabled = true;
+        });
+        setStatsRestricted();
     }
 }
 
