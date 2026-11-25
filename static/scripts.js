@@ -408,6 +408,7 @@ navItems.forEach(item => {
             if (viewKey === 'categories') await loadCategories();
             if (viewKey === 'finalists') await loadFinalists();
             if (viewKey === 'voting') await loadVoting();
+            if (viewKey === 'voting') await loadNominationControl();
             if (viewKey === 'results') await loadResults();   // ✅ now after viewKey is defined
         }
     });
@@ -938,6 +939,79 @@ async function loadResults() {
         render();
     } catch(error) { console.error('Results load failed',error);body.innerHTML='<tr><td colspan="7">Could not load results. Check database access.</td></tr>';put('total-categories','—');put('total-finalists','—');put('results-total-votes','—'); }
 }
+
+async function loadNominationControl() {
+    const status = document.getElementById('nomination-window-status');
+    const openButton = document.getElementById('open-nominations-btn');
+    const closeButton = document.getElementById('close-nominations-btn');
+    if (!status || !openButton || !closeButton) return;
+
+    const render = (isOpen) => {
+        status.textContent = isOpen
+            ? 'Nominations are OPEN. The public form is accepting submissions.'
+            : 'Nominations are CLOSED. New public submissions are blocked.';
+        status.style.color = isOpen ? '#15803d' : '#b91c1c';
+        openButton.disabled = isOpen;
+        closeButton.disabled = !isOpen;
+    };
+
+    status.textContent = 'Checking nomination status…';
+    openButton.disabled = true;
+    closeButton.disabled = true;
+
+    const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'nominations_open')
+        .maybeSingle();
+
+    if (error || !data) {
+        console.error('Could not load nomination window setting:', error);
+        status.textContent = 'Unable to verify nomination status. Controls are disabled.';
+        return;
+    }
+
+    let isOpen = data.value === 'true';
+    render(isOpen);
+
+    const setWindow = async (nextOpen) => {
+        const action = nextOpen ? 'OPEN' : 'CLOSE';
+        const confirmed = window.confirm(
+            nextOpen
+                ? 'Open nominations now? The public will be able to submit new nominations.'
+                : 'Close nominations now? New public submissions will be blocked immediately.'
+        );
+        if (!confirmed) return;
+
+        openButton.disabled = true;
+        closeButton.disabled = true;
+        status.textContent = action === 'OPEN' ? 'Opening nominations…' : 'Closing nominations…';
+
+        const { data: updated, error: updateError } = await supabase
+            .from('settings')
+            .update({ value: String(nextOpen) })
+            .eq('key', 'nominations_open')
+            .select('value')
+            .maybeSingle();
+
+        if (updateError || !updated) {
+            console.error('Nomination window update failed:', updateError);
+            status.textContent = 'Could not change the nomination window. Check administrator access.';
+            openButton.disabled = false;
+            closeButton.disabled = false;
+            window.alert('The nomination setting was not changed. Confirm that you are signed in as an authorised administrator.');
+            return;
+        }
+
+        isOpen = updated.value === 'true';
+        render(isOpen);
+        window.alert(isOpen ? 'Nominations are now open.' : 'Nominations are now closed.');
+    };
+
+    openButton.onclick = () => setWindow(true);
+    closeButton.onclick = () => setWindow(false);
+}
+
 async function loadVoting() {
     try {
         // 1. Fetch settings
