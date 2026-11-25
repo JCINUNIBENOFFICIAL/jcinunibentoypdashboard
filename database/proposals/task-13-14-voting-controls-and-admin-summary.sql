@@ -60,6 +60,7 @@ BEGIN
         'nominee_counts', COALESCE((
             SELECT jsonb_agg(
                 jsonb_build_object(
+                    'nomination_id', grouped.nomination_id,
                     'nominee_name', n.nominee_name,
                     'category', grouped.category,
                     'vote_count', grouped.vote_count
