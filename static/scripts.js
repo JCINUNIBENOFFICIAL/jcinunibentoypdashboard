@@ -1152,8 +1152,8 @@ async function loadVoting() {
         if (totalVotesEl) totalVotesEl.textContent = 'Restricted';
         if (todayVotesEl) todayVotesEl.textContent = 'Restricted';
         if (uniqueVotersEl) uniqueVotersEl.textContent = 'Restricted';
-        if (nomineeBody) nomineeBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Global nominee vote counts require a secured administrator-only summary endpoint.</td></tr>';
-        if (recentBody) recentBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Recent activity is unavailable until a privacy-safe administrator endpoint is configured.</td></tr>';
+        if (nomineeBody) nomineeBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Unable to load aggregate nominee vote counts. Use Refresh Statistics to try again.</td></tr>';
+        if (recentBody) recentBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Unable to load privacy-safe recent activity. Use Refresh Statistics to try again.</td></tr>';
     };
 
     const toLocalInputValue = value => {
