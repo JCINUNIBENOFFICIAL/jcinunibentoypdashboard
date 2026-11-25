@@ -1067,3 +1067,137 @@ button:disabled { cursor: not-allowed; opacity: .55; transform: none !important;
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .card { padding: 22px; }
 }
+
+
+/* Mobile usability pass — Developer 2 */
+@media (max-width: 768px) {
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .mobile-header {
+    min-height: 60px;
+    padding: 10px 14px;
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .main-content,
+  .content-area,
+  .content-padding,
+  .view-header,
+  .page-toolbar,
+  .card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .view-header,
+  .page-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header-actions,
+  .toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .header-actions > *,
+  .toolbar-actions > * {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .stat-card {
+    min-width: 0;
+    padding: 14px 12px;
+    gap: 8px;
+  }
+
+  .stat-card h2 {
+    font-size: clamp(1.25rem, 5vw, 1.8rem);
+    overflow-wrap: anywhere;
+  }
+
+  .card {
+    padding: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .card > div[style*="display:flex"] {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .card input,
+  .card select,
+  .card textarea,
+  .card button,
+  .view-header button,
+  .page-toolbar button {
+    min-height: 44px;
+    max-width: 100%;
+  }
+
+  .card input,
+  .card select,
+  .card textarea {
+    width: 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .table-responsive {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .table-responsive table {
+    min-width: 620px;
+  }
+
+  .sidebar {
+    height: 100dvh !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+
+  .sidebar .nav-item,
+  .sidebar button {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 380px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .content-padding {
+    padding: 12px !important;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .header-actions > *,
+  .toolbar-actions > * {
+    flex-basis: 100%;
+  }
+}
