@@ -1139,7 +1139,8 @@ async function loadVoting() {
     const bannerText = get('voting-banner-text');
     const openButton = get('open-voting-btn');
     const closeButton = get('close-voting-btn');
-    const scheduleButton = get('set-close-time-btn');
+    const scheduleButton = get('save-voting-schedule');
+    const startTimeInput = get('start-time-input');
     const closeTimeInput = get('close-time-input');
     const totalVotesEl = get('total-votes');
     const todayVotesEl = get('votes-today');
@@ -1155,58 +1156,70 @@ async function loadVoting() {
         if (recentBody) recentBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Recent activity is unavailable until a privacy-safe administrator endpoint is configured.</td></tr>';
     };
 
-    const renderStatus = (isOpen, closeAt) => {
-        const label = isOpen ? 'Voting Open' : 'Voting Closed';
-        if (statusBadge) statusBadge.textContent = label;
+    const toLocalInputValue = value => {
+        if (!value || !Number.isFinite(Date.parse(value))) return '';
+        const date = new Date(value);
+        return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    };
+    const fromLocalInputValue = value => {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+    };
+    const formatLocal = value => value && Number.isFinite(Date.parse(value))
+        ? new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' })
+        : 'Not set';
+
+    const renderStatus = (isOpen, startAt, closeAt) => {
+        const validWindow = startAt && closeAt && Number.isFinite(Date.parse(startAt)) &&
+            Number.isFinite(Date.parse(closeAt)) && Date.parse(startAt) < Date.parse(closeAt);
+        const now = Date.now();
+        const beforeStart = validWindow && now < Date.parse(startAt);
+        const afterClose = validWindow && now >= Date.parse(closeAt);
+        if (statusBadge) statusBadge.textContent = isOpen ? 'Voting Enabled' : 'Voting Closed';
         if (banner) {
             banner.style.borderLeftColor = isOpen ? '#16a34a' : '#ef4444';
-            banner.setAttribute('aria-label', label);
+            banner.setAttribute('aria-label', isOpen ? 'Manual voting switch: ON' : 'Manual voting switch: OFF');
         }
         if (bannerText) {
-            bannerText.textContent = isOpen
-                ? 'Public voting is OPEN. Authenticated voters may cast one ballot per category.'
-                : 'Public voting is CLOSED. New ballots are blocked by the voting setting.';
+            if (!validWindow) bannerText.textContent = 'Voting is blocked until valid opening and closing times are saved. Configure the schedule, then enable the manual voting switch.';
+            else if (!isOpen) bannerText.textContent = 'The manual voting switch is OFF. Public voting remains closed.';
+            else if (beforeStart) bannerText.textContent = 'The manual switch is ON, but the database will block ballots until the scheduled opening time.';
+            else if (afterClose) bannerText.textContent = 'The scheduled closing time has passed. The database blocks new ballots even if the manual switch remains ON. Turn the switch OFF.';
+            else bannerText.textContent = 'Voting is enabled and within its scheduled window. Authenticated voters may cast one ballot per category for eligible nominees.';
         }
-        if (openButton) openButton.disabled = isOpen;
+        if (openButton) openButton.disabled = isOpen || !validWindow;
         if (closeButton) closeButton.disabled = !isOpen;
-        const toggle = get('toggle-voting');
-        if (toggle) {
-            toggle.disabled = false;
-            toggle.textContent = isOpen ? 'Close Voting' : 'Open Voting';
-            toggle.className = isOpen ? 'btn-warning' : 'btn-primary';
-        }
         const timer = get('voting-timer');
         if (timer) {
-            if (closeAt && Number.isFinite(Date.parse(closeAt))) {
-                timer.textContent = new Date(closeAt).toLocaleString();
-                timer.title = 'Scheduled close time reminder; server-side automatic closure is not yet enforced.';
-            } else {
-                timer.textContent = 'Not scheduled';
-                timer.title = 'No close-time reminder has been set.';
-            }
+            timer.textContent = formatLocal(closeAt);
+            timer.title = 'Scheduled closing time. The database enforces the opening and closing timestamps on every vote.';
         }
+        const startDisplay = get('voting-start-display');
+        const closeDisplay = get('voting-close-display');
+        if (startDisplay) startDisplay.textContent = formatLocal(startAt);
+        if (closeDisplay) closeDisplay.textContent = formatLocal(closeAt);
     };
 
     if (bannerText) bannerText.textContent = 'Checking voting settings…';
-    [openButton, closeButton, scheduleButton, get('toggle-voting')].forEach(button => {
-        if (button) button.disabled = true;
-    });
+    [openButton, closeButton, scheduleButton].forEach(button => { if (button) button.disabled = true; });
 
     try {
         const { data: settings, error } = await supabase.from('settings')
             .select('key,value')
-            .in('key', ['voting_open','voting_close_time']);
+            .in('key', ['voting_open', 'voting_start_time', 'voting_close_time']);
         if (error) throw error;
         const settingMap = new Map((settings || []).map(item => [item.key, item.value]));
-        if (!settingMap.has('voting_open')) throw new Error('The voting_open setting is missing.');
-        let isOpen = String(settingMap.get('voting_open')).toLowerCase() === 'true';
-        let closeAt = settingMap.get('voting_close_time') || '';
-
-        if (closeTimeInput && closeAt && Number.isFinite(Date.parse(closeAt))) {
-            const local = new Date(closeAt);
-            closeTimeInput.value = new Date(local.getTime() - local.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+        for (const key of ['voting_open', 'voting_start_time', 'voting_close_time']) {
+            if (!settingMap.has(key)) throw new Error('The ' + key + ' setting is missing.');
         }
-        renderStatus(isOpen, closeAt);
+
+        let isOpen = String(settingMap.get('voting_open')).toLowerCase() === 'true';
+        let startAt = settingMap.get('voting_start_time') || '';
+        let closeAt = settingMap.get('voting_close_time') || '';
+        if (startTimeInput) startTimeInput.value = toLocalInputValue(startAt);
+        if (closeTimeInput) closeTimeInput.value = toLocalInputValue(closeAt);
+        renderStatus(isOpen, startAt, closeAt);
 
         const updateSetting = async (key, value) => {
             const { data, error: updateError } = await supabase.from('settings')
@@ -1220,49 +1233,68 @@ async function loadVoting() {
         };
 
         const setVoting = async nextOpen => {
-            const action = nextOpen ? 'OPEN' : 'CLOSE';
+            if (nextOpen && (!startAt || !closeAt || !Number.isFinite(Date.parse(startAt)) ||
+                !Number.isFinite(Date.parse(closeAt)) || Date.parse(startAt) >= Date.parse(closeAt))) {
+                window.alert('Save a valid voting schedule before enabling voting.');
+                return;
+            }
             if (!window.confirm(nextOpen
-                ? 'Open public voting now? Authenticated voters will be able to cast ballots.'
-                : 'Close public voting now? New ballots will be blocked.')) return;
-            [openButton, closeButton, get('toggle-voting')].forEach(button => { if (button) button.disabled = true; });
-            if (bannerText) bannerText.textContent = nextOpen ? 'Opening voting…' : 'Closing voting…';
+                ? 'Enable the manual voting switch? The database will still block ballots outside the saved schedule.'
+                : 'Close public voting now? New ballots will be blocked immediately.')) return;
+            [openButton, closeButton].forEach(button => { if (button) button.disabled = true; });
+            if (bannerText) bannerText.textContent = nextOpen ? 'Enabling voting…' : 'Closing voting…';
             try {
                 await updateSetting('voting_open', nextOpen ? 'true' : 'false');
                 isOpen = nextOpen;
-                renderStatus(isOpen, closeAt);
+                renderStatus(isOpen, startAt, closeAt);
             } catch (updateError) {
                 console.error('Voting control update failed:', updateError);
                 if (bannerText) bannerText.textContent = 'Voting status was not changed. Check administrator permissions.';
                 window.alert('Could not update voting. No setting was changed.');
-                renderStatus(isOpen, closeAt);
+                renderStatus(isOpen, startAt, closeAt);
             }
         };
 
         if (openButton) openButton.onclick = () => setVoting(true);
         if (closeButton) closeButton.onclick = () => setVoting(false);
-        const toggle = get('toggle-voting');
-        if (toggle) toggle.onclick = () => setVoting(!isOpen);
 
         if (scheduleButton) {
             scheduleButton.disabled = false;
             scheduleButton.onclick = async () => {
-                if (!closeTimeInput?.value) {
-                    window.alert('Choose a close-time reminder first.');
+                const nextStart = fromLocalInputValue(startTimeInput?.value);
+                const nextClose = fromLocalInputValue(closeTimeInput?.value);
+                if (!nextStart || !nextClose) {
+                    window.alert('Enter both the opening and closing date/time.');
                     return;
                 }
-                const scheduled = new Date(closeTimeInput.value);
-                if (!Number.isFinite(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
-                    window.alert('Choose a future date and time.');
+                if (Date.parse(nextStart) >= Date.parse(nextClose)) {
+                    window.alert('The closing date/time must be later than the opening date/time.');
+                    return;
+                }
+                if (Date.parse(nextClose) <= Date.now()) {
+                    window.alert('The closing date/time must be in the future.');
                     return;
                 }
                 scheduleButton.disabled = true;
                 try {
-                    closeAt = await updateSetting('voting_close_time', scheduled.toISOString());
-                    renderStatus(isOpen, closeAt);
-                    window.alert('Close-time reminder saved. Important: this is currently a dashboard reminder only; server-side automatic closure still needs a database policy or scheduled backend job.');
+                    if (isOpen) {
+                        await updateSetting('voting_open', 'false');
+                        isOpen = false;
+                    }
+                    startAt = await updateSetting('voting_start_time', nextStart);
+                    closeAt = await updateSetting('voting_close_time', nextClose);
+                    renderStatus(isOpen, startAt, closeAt);
+                    window.alert('Voting schedule saved. Voting remains closed until you explicitly enable the manual switch.');
                 } catch (updateError) {
-                    console.error('Close-time reminder update failed:', updateError);
-                    window.alert('Could not save the close-time reminder. Check administrator permissions.');
+                    console.error('Voting schedule update failed:', updateError);
+                    window.alert('The schedule could not be fully saved. The manual voting switch has been left OFF; review the saved values and try again.');
+                    try {
+                        await updateSetting('voting_open', 'false');
+                        isOpen = false;
+                    } catch (closeError) {
+                        console.error('Could not confirm voting is closed after schedule update failure:', closeError);
+                    }
+                    renderStatus(isOpen, startAt, closeAt);
                 } finally {
                     scheduleButton.disabled = false;
                 }
