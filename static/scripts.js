@@ -4,14 +4,7 @@
  */
 
 
-// 1. SYSTEM STATE & SECURITY (Requirement 2)
-// At the very beginning (after imports)
-const currentUser = {
-    name: "Admin User",
-    role: localStorage.getItem('activeUserRole') || 'super-admin',
-    isAuthenticated: true
-};
-
+// Authentication and administrator authorization are enforced by Supabase Auth and database RLS.
 
 // Import Supabase client (requires `static/config.js` to set window.SUPABASE_URL and window.SUPABASE_ANON_KEY)
 import { supabase } from './supabase-client.js';
