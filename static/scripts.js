@@ -20,40 +20,40 @@ window.__mergeLogs = [];   // store merge action logs
 // 2. VIEW TEMPLATES (Requirement 3B - 3H)
 const templateViews = {
     overview: {
-        filePath: '/views/overview.html',
+        filePath: './views/overview.html',
         htmlContent: '',
     },
     nominations: {
-        filePath: '/views/nominations.html',
+        filePath: './views/nominations.html',
         htmlContent: '',
     },
     categories: {
-        filePath: '/views/categories.html',
+        filePath: './views/categories.html',
         htmlContent: '',
     },
     finalists: {
-        filePath: '/views/finalists.html',
+        filePath: './views/finalists.html',
         htmlContent: '',
     },
     voting: {
-        filePath: '/views/voting.html',
+        filePath: './views/voting.html',
         htmlContent: '',
     },
     results: {
-        filePath: '/views/results.html',
+        filePath: './views/results.html',
         htmlContent: '',
     },
     // Both dashboard links lead to the existing audit-trail screen.
     audit: {
-        filePath: '/views/audit-log.html',
+        filePath: './views/audit-log.html',
         htmlContent: '',
     },
     logs: {
-        filePath: '/views/audit-log.html',
+        filePath: './views/audit-log.html',
         htmlContent: '',
     },
     content: {
-        filePath: '/views/content.html',
+        filePath: './views/content.html',
         htmlContent: '',
     },
 };
