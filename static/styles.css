@@ -1037,3 +1037,33 @@ input:checked + .slider:before { transform: translateX(16px); }
     background: #dc2626;
     transform: translateY(-2px);
 }
+
+/* Phase 13–15: dashboard responsive and voting controls */
+.view-header, .header-actions { min-width: 0; }
+.header-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.card, .stat-card, .table-responsive { min-width: 0; }
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive table { min-width: 640px; }
+#voting-banner > div { align-items: flex-start; }
+#voting-banner input, #voting-banner button { max-width: 100%; }
+#voting-banner [style*="display:flex"] { flex-wrap: wrap; }
+button:disabled { cursor: not-allowed; opacity: .55; transform: none !important; }
+@media (max-width: 768px) {
+    .content-padding { padding: 18px 14px !important; }
+    .view-header { align-items: flex-start; gap: 12px; flex-direction: column; }
+    .view-header h1 { font-size: clamp(20px, 5vw, 28px); }
+    .header-actions { width: 100%; }
+    .header-actions button { flex: 1 1 140px; }
+    .card { padding: 18px; border-radius: 14px; }
+    .stats-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 12px; }
+    .stat-card { padding: 18px; }
+    .table-responsive table { min-width: 680px; }
+    #voting-banner > div { flex-direction: column; align-items: stretch; }
+    #voting-banner input, #voting-banner button { width: 100%; }
+    .category-cards-grid { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+    .content-padding { padding: 24px !important; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { padding: 22px; }
+}
