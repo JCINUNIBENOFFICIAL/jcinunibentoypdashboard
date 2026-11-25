@@ -890,28 +890,43 @@ async function loadResults() {
         const element = document.getElementById(id);
         if (element) element.textContent = value;
     };
-    body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">Loading results data…</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">Loading verified voting results…</td></tr>';
 
     try {
-        const [nomineesResult, categoriesResult] = await Promise.all([
+        const [nominees, categories, summaryResult] = await Promise.all([
             fetchAllRows(() => supabase.from('nominations')
                 .select('id, nominee_name, category, status, ready_for_voting')
                 .eq('ready_for_voting', true)),
-            fetchAllRows(() => supabase.from('categories').select('name'))
+            fetchAllRows(() => supabase.from('categories').select('name')),
+            supabase.rpc('get_admin_voting_summary')
         ]);
-        const nominees = nomineesResult || [];
-        const categories = categoriesResult || [];
-        const rows = nominees.map(record => ({
-            name: record.nominee_name || 'Unnamed nominee',
-            category: record.category || 'Uncategorised',
-            status: record.status || 'Ready for voting'
-        }));
+        if (summaryResult.error || !summaryResult.data) {
+            throw new Error('Global vote totals are unavailable. The administrator-only voting summary must be deployed before rankings can be calculated.');
+        }
 
-        put('total-categories', new Set([...categories.map(item => item.name), ...rows.map(item => item.category)]).size);
+        const summary = summaryResult.data;
+        const countRows = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
+        const counts = new Map();
+        countRows.forEach(row => {
+            const key = String(row.nominee_name || '') + '::' + String(row.category || '');
+            counts.set(key, Number(row.vote_count || 0));
+        });
+        const rows = (nominees || []).map(record => {
+            const name = record.nominee_name || 'Unnamed nominee';
+            const category = record.category || 'Uncategorised';
+            return {
+                id: record.id,
+                name,
+                category,
+                status: record.status || 'Ready for voting',
+                votes: counts.get(name + '::' + category) || 0
+            };
+        });
+
+        const totalVotes = Number(summary.total_votes || 0);
+        put('total-categories', new Set([...(categories || []).map(item => item.name), ...rows.map(item => item.category)]).size);
         put('total-finalists', rows.length);
-        // The current votes SELECT policy only exposes a voter's own ballots.
-        // A successful query can therefore return a misleading partial count; never present it as a global result.
-        put('results-total-votes', 'Restricted');
+        put('results-total-votes', totalVotes.toLocaleString());
 
         const categorySelect = document.getElementById('results-category-filter');
         const uniqueCategories = [...new Set(rows.map(row => row.category))].sort((a,b) => a.localeCompare(b));
@@ -932,26 +947,43 @@ async function loadResults() {
                 (!position || position === 'Finalist' || row.status.toLowerCase() === position.toLowerCase())
             );
 
+            const categoryTotals = new Map();
+            rows.forEach(row => categoryTotals.set(row.category, (categoryTotals.get(row.category) || 0) + row.votes));
+            const ranked = [...filtered].sort((a,b) =>
+                a.category.localeCompare(b.category) || b.votes-a.votes || a.name.localeCompare(b.name)
+            );
+            const leaders = new Map();
+            ranked.forEach(row => { if (!leaders.has(row.category) && row.votes > 0) leaders.set(row.category,row); });
+
             body.innerHTML = '';
-            if (!filtered.length) {
-                body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">No nominees currently marked ready for voting.</td></tr>';
+            if (!ranked.length) {
+                body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">No nominees are currently marked ready for voting.</td></tr>';
             } else {
-                filtered.sort((a,b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-                filtered.forEach(row => {
+                ranked.forEach(row => {
+                    const sameCategory = rows.filter(other => other.category === row.category);
+                    const rank = sameCategory.filter(other => other.votes > row.votes).length + 1;
+                    const denominator = categoryTotals.get(row.category) || 0;
+                    const percentage = denominator ? (row.votes / denominator * 100).toFixed(1) : '0.0';
                     const tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td>—</td>' +
+                        '<td>' + rank + '</td>' +
                         '<td>' + escapeHTML(row.name) + '</td>' +
                         '<td>' + escapeHTML(row.category) + '</td>' +
-                        '<td>Unavailable</td><td>—</td>' +
+                        '<td>' + row.votes.toLocaleString() + '</td>' +
+                        '<td>' + percentage + '%</td>' +
                         '<td>' + escapeHTML(row.status) + '</td><td>—</td>';
                     body.appendChild(tr);
                 });
             }
-            put('results-count', filtered.length + ' Nominees · vote totals restricted');
+            put('results-count', ranked.length + ' Results');
             const winnerGrid = document.getElementById('winner-grid');
             if (winnerGrid) {
-                winnerGrid.textContent = 'No winners are calculated or published. Global vote totals require a secured administrator-only aggregate endpoint.';
+                winnerGrid.innerHTML = leaders.size
+                    ? [...leaders.values()].map(row =>
+                        '<div class="card"><h4>' + escapeHTML(row.category) + '</h4><strong>' +
+                        escapeHTML(row.name) + '</strong><p>' + row.votes.toLocaleString() + ' votes</p></div>'
+                    ).join('')
+                    : 'No category has recorded votes yet. No winners are declared by this dashboard.';
             }
         };
 
@@ -961,27 +993,35 @@ async function loadResults() {
             element.addEventListener(id === 'results-search' ? 'input' : 'change', render);
             element.dataset.resultsBound = 'true';
         });
-
         const refresh = document.getElementById('refresh-results');
         if (refresh) refresh.onclick = loadResults;
         const exportButton = document.getElementById('export-results');
         if (exportButton) {
             exportButton.disabled = true;
-            exportButton.title = 'Export is disabled until global vote totals are available through a secured administrator endpoint.';
+            exportButton.title = 'CSV export will be enabled after the certified export workflow is reviewed.';
         }
         const publishButton = document.getElementById('publish-results');
         if (publishButton) {
             publishButton.disabled = true;
-            publishButton.title = 'Publishing remains disabled until voting totals can be securely verified.';
+            publishButton.title = 'Publishing remains disabled pending formal result verification and approval.';
             publishButton.textContent = 'Publishing Disabled';
         }
         render();
     } catch (error) {
-        console.error('Results load failed:', error);
-        body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:#b91c1c;">Could not load nominee data. Please refresh or check administrator access.</td></tr>';
-        put('total-categories', 'Unavailable');
-        put('total-finalists', 'Unavailable');
+        console.warn('Results cannot yet be calculated:', error);
+        body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">' +
+            escapeHTML(error.message || 'Global voting data is unavailable. Secure administrator reporting is required.') +
+            '</td></tr>';
+        put('total-categories', '—');
+        put('total-finalists', '—');
         put('results-total-votes', 'Restricted');
+        put('results-count', 'Results unavailable');
+        const winnerGrid = document.getElementById('winner-grid');
+        if (winnerGrid) winnerGrid.textContent = 'Winner information is unavailable until secure administrator voting reports are enabled.';
+        const exportButton = document.getElementById('export-results');
+        if (exportButton) exportButton.disabled = true;
+        const publishButton = document.getElementById('publish-results');
+        if (publishButton) publishButton.disabled = true;
     }
 }
 
@@ -1194,14 +1234,40 @@ async function loadVoting() {
             };
         }
 
-        // Do not query vote_details or count rows visible only to the current voter.
-        // The current RLS policies do not provide a trustworthy global admin count.
-        setStatsRestricted();
+        // Use only the administrator-gated aggregate RPC. Never read vote_details or
+        // treat the current voter's RLS-filtered rows as global totals.
+        const { data: summary, error: summaryError } = await supabase.rpc('get_admin_voting_summary');
+        if (summaryError || !summary) {
+            console.warn('Admin voting summary is not available:', summaryError);
+            setStatsRestricted();
+        } else {
+            if (totalVotesEl) totalVotesEl.textContent = Number(summary.total_votes || 0).toLocaleString();
+            if (todayVotesEl) todayVotesEl.textContent = Number(summary.votes_today || 0).toLocaleString();
+            if (uniqueVotersEl) uniqueVotersEl.textContent = Number(summary.unique_voters || 0).toLocaleString();
+
+            if (nomineeBody) {
+                const counts = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
+                nomineeBody.innerHTML = counts.length ? counts.map(row =>
+                    '<tr><td style="padding:10px;">' + escapeHTML(row.nominee_name || 'Unnamed nominee') +
+                    '</td><td style="padding:10px;">' + escapeHTML(row.category || 'Uncategorised') +
+                    '</td><td style="padding:10px;text-align:center;font-weight:600;">' +
+                    Number(row.vote_count || 0).toLocaleString() + '</td></tr>'
+                ).join('') : '<tr><td colspan="3" style="padding:15px;text-align:center;">No votes have been recorded.</td></tr>';
+            }
+            if (recentBody) {
+                const activity = Array.isArray(summary.recent_activity) ? summary.recent_activity : [];
+                recentBody.innerHTML = activity.length ? activity.map(row =>
+                    '<tr><td style="padding:10px;">' + escapeHTML(row.created_at ? new Date(row.created_at).toLocaleString() : '—') +
+                    '</td><td style="padding:10px;">' + escapeHTML(row.category || '—') +
+                    '</td><td style="padding:10px;">' + escapeHTML(row.nominee_name || '—') + '</td></tr>'
+                ).join('') : '<tr><td colspan="3" style="padding:15px;text-align:center;">No recent votes.</td></tr>';
+            }
+        }
 
         const exportVotes = get('export-votes-btn');
         if (exportVotes) {
             exportVotes.disabled = true;
-            exportVotes.title = 'Export is disabled until a secured administrator-only vote summary endpoint is available.';
+            exportVotes.title = 'Vote export will be enabled after the approved privacy-safe export workflow is implemented.';
         }
         const refresh = get('refresh-stats-btn');
         if (refresh) refresh.onclick = loadVoting;
