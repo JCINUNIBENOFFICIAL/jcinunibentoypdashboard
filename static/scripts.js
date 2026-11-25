@@ -908,8 +908,7 @@ async function loadResults() {
         const countRows = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
         const counts = new Map();
         countRows.forEach(row => {
-            const key = String(row.nominee_name || '') + '::' + String(row.category || '');
-            counts.set(key, Number(row.vote_count || 0));
+            counts.set(String(row.nomination_id), Number(row.vote_count || 0));
         });
         const rows = (nominees || []).map(record => {
             const name = record.nominee_name || 'Unnamed nominee';
@@ -919,7 +918,7 @@ async function loadResults() {
                 name,
                 category,
                 status: record.status || 'Ready for voting',
-                votes: counts.get(name + '::' + category) || 0
+                votes: counts.get(String(record.id)) || 0
             };
         });
 
@@ -997,8 +996,37 @@ async function loadResults() {
         if (refresh) refresh.onclick = loadResults;
         const exportButton = document.getElementById('export-results');
         if (exportButton) {
-            exportButton.disabled = true;
-            exportButton.title = 'CSV export will be enabled after the certified export workflow is reviewed.';
+            exportButton.disabled = false;
+            exportButton.title = 'Download the currently filtered results with aggregate vote counts only.';
+            exportButton.onclick = () => {
+                const query = (document.getElementById('results-search')?.value || '').trim().toLowerCase();
+                const selectedCategory = categorySelect?.value || '';
+                const selectedPosition = document.getElementById('results-status-filter')?.value || '';
+                const exportRows = rows.filter(row =>
+                    row.name.toLowerCase().includes(query) &&
+                    (!selectedCategory || row.category === selectedCategory) &&
+                    (!selectedPosition || selectedPosition === 'Finalist' || row.status.toLowerCase() === selectedPosition.toLowerCase())
+                );
+                const totals = new Map();
+                rows.forEach(row => totals.set(row.category, (totals.get(row.category) || 0) + row.votes));
+                const csvData = [
+                    ['Nominee','Category','Votes','Category Vote Share','Status'],
+                    ...exportRows.map(row => [
+                        row.name,
+                        row.category,
+                        row.votes,
+                        (totals.get(row.category) ? (row.votes / totals.get(row.category) * 100).toFixed(1) : '0.0') + '%',
+                        row.status
+                    ])
+                ];
+                const csv = '\uFEFF' + csvData.map(line => line.map(value => '"' + String(value ?? '').replace(/"/g,'""') + '"').join(',')).join('\r\n');
+                const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'toyp-voting-results-' + new Date().toISOString().slice(0,10) + '.csv';
+                link.click();
+                URL.revokeObjectURL(url);
+            };
         }
         const publishButton = document.getElementById('publish-results');
         if (publishButton) {
@@ -1266,8 +1294,23 @@ async function loadVoting() {
 
         const exportVotes = get('export-votes-btn');
         if (exportVotes) {
-            exportVotes.disabled = true;
-            exportVotes.title = 'Vote export will be enabled after the approved privacy-safe export workflow is implemented.';
+            exportVotes.disabled = !!summaryError || !summary;
+            exportVotes.title = 'Download aggregate nominee/category vote counts. No voter identity data is included.';
+            exportVotes.onclick = () => {
+                if (!summary || summaryError) return;
+                const rows = Array.isArray(summary.nominee_counts) ? summary.nominee_counts : [];
+                const csvRows = [
+                    ['Nominee','Category','Vote Count'],
+                    ...rows.map(row => [row.nominee_name || '', row.category || '', Number(row.vote_count || 0)])
+                ];
+                const csv = '\uFEFF' + csvRows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g,'""') + '"').join(',')).join('\r\n');
+                const url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'toyp-vote-summary-' + new Date().toISOString().slice(0,10) + '.csv';
+                link.click();
+                URL.revokeObjectURL(url);
+            };
         }
         const refresh = get('refresh-stats-btn');
         if (refresh) refresh.onclick = loadVoting;
