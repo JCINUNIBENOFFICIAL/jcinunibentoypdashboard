@@ -1201,3 +1201,47 @@ button:disabled { cursor: not-allowed; opacity: .55; transform: none !important;
     flex-basis: 100%;
   }
 }
+
+
+/* Mobile admin header: compact, proportionate TOYP brand mark */
+@media (max-width: 768px) {
+  .mobile-header {
+    min-height: 64px;
+    height: 64px;
+    padding: 8px 16px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    gap: 12px;
+  }
+
+  .mobile-header .mobile-logo {
+    display: block;
+    width: 112px !important;
+    max-width: 112px !important;
+    height: 42px !important;
+    max-height: 42px !important;
+    object-fit: contain;
+    object-position: left center;
+    flex: 0 1 112px;
+    margin: 0;
+  }
+
+  .mobile-header .menu-toggle {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
+    display: grid;
+    place-items: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .mobile-header .mobile-logo {
+    width: 96px !important;
+    max-width: 96px !important;
+    height: 38px !important;
+    max-height: 38px !important;
+    flex-basis: 96px;
+  }
+}
