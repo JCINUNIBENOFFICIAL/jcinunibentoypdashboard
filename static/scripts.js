@@ -1167,12 +1167,16 @@ async function loadVoting() {
         return Number.isFinite(date.getTime()) ? date.toISOString() : null;
     };
     const formatLocal = value => value && Number.isFinite(Date.parse(value))
-        ? new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' })
+        ? new Date(value).toLocaleString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+        })
         : 'Not set';
 
     const renderStatus = (isOpen, startAt, closeAt) => {
         const validWindow = startAt && closeAt && Number.isFinite(Date.parse(startAt)) &&
-            Number.isFinite(Date.parse(closeAt)) && Date.parse(startAt) < Date.parse(closeAt);
+            Number.isFinite(Date.parse(closeAt)) && Date.parse(startAt) < Date.parse(closeAt) &&
+            Date.parse(closeAt) > Date.now();
         const now = Date.now();
         const beforeStart = validWindow && now < Date.parse(startAt);
         const afterClose = validWindow && now >= Date.parse(closeAt);
