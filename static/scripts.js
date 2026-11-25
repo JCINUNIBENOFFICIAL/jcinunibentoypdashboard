@@ -884,60 +884,105 @@ navItems.forEach(item => {
     }
 
 async function loadResults() {
-    const body = document.getElementById('results-table-body'); if (!body) return;
-    const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
-    body.innerHTML='<tr><td colspan="7">Loading results...</td></tr>';
+    const body = document.getElementById('results-table-body');
+    if (!body) return;
+    const put = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    };
+    body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">Loading results data…</td></tr>';
+
     try {
-        const [n,v,c] = await Promise.all([
-            supabase.from('nominations').select('id,nominee_name,category,status,ready_for_voting').eq('ready_for_voting',true),
-            supabase.from('votes').select('nomination_id'),
-            supabase.from('categories').select('name')
+        const [nomineesResult, categoriesResult] = await Promise.all([
+            fetchAllRows(() => supabase.from('nominations')
+                .select('id, nominee_name, category, status, ready_for_voting')
+                .eq('ready_for_voting', true)),
+            fetchAllRows(() => supabase.from('categories').select('name'))
         ]);
-        if(n.error)throw n.error;if(c.error)throw c.error;
-        const voteAccessError=v.error;
-        const votes=new Map();(v.data||[]).forEach(x=>votes.set(String(x.nomination_id),(votes.get(String(x.nomination_id))||0)+1));
-        const rows=(n.data||[]).map(x=>({id:x.id,name:x.nominee_name||'Unnamed nominee',category:x.category||'Uncategorised',status:x.status||'Finalist',votes:votes.get(String(x.id))||0}));
-        const total=(v.data||[]).length;
-        const votesUnavailable=!!voteAccessError;put('total-categories',new Set([...(c.data||[]).map(x=>x.name),...rows.map(x=>x.category)]).size);put('total-finalists',rows.length);put('results-total-votes',total);
-        const filter=()=>{const q=(document.getElementById('results-search')?.value||'').toLowerCase();const cat=document.getElementById('results-category-filter')?.value||'';const pos=document.getElementById('results-status-filter')?.value||'';return rows.filter(x=>x.name.toLowerCase().includes(q)&&(!cat||x.category===cat)&&(!pos||pos==='Finalist'||x.status.toLowerCase()===pos.toLowerCase()));};
-        const categories=[...new Set(rows.map(x=>x.category))];const select=document.getElementById('results-category-filter');if(select){const old=select.value;select.innerHTML='<option value="">All Categories</option>'+categories.map(x=>'<option>'+escapeHTML(x)+'</option>').join('');select.value=categories.includes(old)?old:'';}
-        const render=()=>{
-            body.innerHTML='';
-            const winnerGrid=document.getElementById('winner-grid');
-            if(votesUnavailable){
-                body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">Voting records are currently restricted by database permissions. Nominee data is available, but rankings cannot be calculated.</td></tr>';
-                put('results-count','Voting data restricted');
-                if(winnerGrid)winnerGrid.textContent='Winner information is unavailable until vote access is restored.';
-                return;
+        const nominees = nomineesResult || [];
+        const categories = categoriesResult || [];
+        const rows = nominees.map(record => ({
+            name: record.nominee_name || 'Unnamed nominee',
+            category: record.category || 'Uncategorised',
+            status: record.status || 'Ready for voting'
+        }));
+
+        put('total-categories', new Set([...categories.map(item => item.name), ...rows.map(item => item.category)]).size);
+        put('total-finalists', rows.length);
+        // The current votes SELECT policy only exposes a voter's own ballots.
+        // A successful query can therefore return a misleading partial count; never present it as a global result.
+        put('results-total-votes', 'Restricted');
+
+        const categorySelect = document.getElementById('results-category-filter');
+        const uniqueCategories = [...new Set(rows.map(row => row.category))].sort((a,b) => a.localeCompare(b));
+        if (categorySelect) {
+            const previous = categorySelect.value;
+            categorySelect.innerHTML = '<option value="">All Categories</option>' +
+                uniqueCategories.map(category => '<option value="' + escapeHTML(category) + '">' + escapeHTML(category) + '</option>').join('');
+            categorySelect.value = uniqueCategories.includes(previous) ? previous : '';
+        }
+
+        const render = () => {
+            const query = (document.getElementById('results-search')?.value || '').trim().toLowerCase();
+            const category = categorySelect?.value || '';
+            const position = document.getElementById('results-status-filter')?.value || '';
+            const filtered = rows.filter(row =>
+                row.name.toLowerCase().includes(query) &&
+                (!category || row.category === category) &&
+                (!position || position === 'Finalist' || row.status.toLowerCase() === position.toLowerCase())
+            );
+
+            body.innerHTML = '';
+            if (!filtered.length) {
+                body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;">No nominees currently marked ready for voting.</td></tr>';
+            } else {
+                filtered.sort((a,b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+                filtered.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td>—</td>' +
+                        '<td>' + escapeHTML(row.name) + '</td>' +
+                        '<td>' + escapeHTML(row.category) + '</td>' +
+                        '<td>Unavailable</td><td>—</td>' +
+                        '<td>' + escapeHTML(row.status) + '</td><td>—</td>';
+                    body.appendChild(tr);
+                });
             }
-            if(!total){
-                body.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center">No voting records yet. Official rankings will appear after votes are recorded.</td></tr>';
-                put('results-count','0 Results');
-                if(winnerGrid)winnerGrid.textContent='No category winners yet.';
-                return;
+            put('results-count', filtered.length + ' Nominees · vote totals restricted');
+            const winnerGrid = document.getElementById('winner-grid');
+            if (winnerGrid) {
+                winnerGrid.textContent = 'No winners are calculated or published. Global vote totals require a secured administrator-only aggregate endpoint.';
             }
-            const totals={};
-            rows.forEach(row=>totals[row.category]=(totals[row.category]||0)+row.votes);
-            const ranked=[...rows].sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes||a.name.localeCompare(b.name));
-            const leaders=new Map();
-            ranked.forEach(row=>{if(!leaders.has(row.category))leaders.set(row.category,row);});
-            const list=filter().sort((a,b)=>a.category.localeCompare(b.category)||b.votes-a.votes||a.name.localeCompare(b.name));
-            list.forEach(row=>{
-                const rank=ranked.filter(other=>other.category===row.category&&other.votes>row.votes).length+1;
-                const percentage=totals[row.category]?(row.votes/totals[row.category]*100).toFixed(1):'0.0';
-                const tr=document.createElement('tr');
-                tr.innerHTML='<td>'+rank+'</td><td>'+escapeHTML(row.name)+'</td><td>'+escapeHTML(row.category)+'</td><td>'+row.votes+'</td><td>'+percentage+'%</td><td>'+escapeHTML(row.status)+'</td><td>—</td>';
-                body.appendChild(tr);
-            });
-            put('results-count',list.length+' Results');
-            if(winnerGrid)winnerGrid.innerHTML=[...leaders.values()].map(row=>'<div class="card"><h4>'+escapeHTML(row.category)+'</h4><strong>'+escapeHTML(row.name)+'</strong><p>'+row.votes+' votes</p></div>').join('')||'No category winners yet.';
         };
-        ['results-search','results-category-filter','results-status-filter'].forEach(id=>document.getElementById(id)?.addEventListener(id==='results-search'?'input':'change',render));
-        document.getElementById('refresh-results')?.addEventListener('click',loadResults);
-        document.getElementById('export-results')?.addEventListener('click',()=>{if(!total){alert('There are no results to export yet.');return;}const data=[['Nominee','Category','Votes','Status'],...filter().map(x=>[x.name,x.category,x.votes,x.status])];const csv=data.map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const link=document.createElement('a');link.href=url;link.download='toyp-results.csv';link.click();URL.revokeObjectURL(url);});
-        const publish=document.getElementById('publish-results');if(publish){publish.disabled=true;publish.title='Publishing is disabled in this read-only dashboard.';publish.textContent='Publishing Disabled (Read Only)';}
+
+        ['results-search','results-category-filter','results-status-filter'].forEach(id => {
+            const element = document.getElementById(id);
+            if (!element || element.dataset.resultsBound === 'true') return;
+            element.addEventListener(id === 'results-search' ? 'input' : 'change', render);
+            element.dataset.resultsBound = 'true';
+        });
+
+        const refresh = document.getElementById('refresh-results');
+        if (refresh) refresh.onclick = loadResults;
+        const exportButton = document.getElementById('export-results');
+        if (exportButton) {
+            exportButton.disabled = true;
+            exportButton.title = 'Export is disabled until global vote totals are available through a secured administrator endpoint.';
+        }
+        const publishButton = document.getElementById('publish-results');
+        if (publishButton) {
+            publishButton.disabled = true;
+            publishButton.title = 'Publishing remains disabled until voting totals can be securely verified.';
+            publishButton.textContent = 'Publishing Disabled';
+        }
         render();
-    } catch(error) { console.error('Results load failed',error);body.innerHTML='<tr><td colspan="7">Could not load results. Check database access.</td></tr>';put('total-categories','—');put('total-finalists','—');put('results-total-votes','—'); }
+    } catch (error) {
+        console.error('Results load failed:', error);
+        body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:#b91c1c;">Could not load nominee data. Please refresh or check administrator access.</td></tr>';
+        put('total-categories', 'Unavailable');
+        put('total-finalists', 'Unavailable');
+        put('results-total-votes', 'Restricted');
+    }
 }
 
 async function loadNominationControl() {
@@ -1013,109 +1058,161 @@ async function loadNominationControl() {
 }
 
 async function loadVoting() {
+    const get = id => document.getElementById(id);
+    const statusBadge = get('v-status');
+    const banner = get('voting-banner');
+    const bannerText = get('voting-banner-text');
+    const openButton = get('open-voting-btn');
+    const closeButton = get('close-voting-btn');
+    const scheduleButton = get('set-close-time-btn');
+    const closeTimeInput = get('close-time-input');
+    const totalVotesEl = get('total-votes');
+    const todayVotesEl = get('votes-today');
+    const uniqueVotersEl = get('unique-voters');
+    const nomineeBody = get('nominee-votes-tbody');
+    const recentBody = get('recent-votes-tbody');
+
+    const setStatsRestricted = () => {
+        if (totalVotesEl) totalVotesEl.textContent = 'Restricted';
+        if (todayVotesEl) todayVotesEl.textContent = 'Restricted';
+        if (uniqueVotersEl) uniqueVotersEl.textContent = 'Restricted';
+        if (nomineeBody) nomineeBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Global nominee vote counts require a secured administrator-only summary endpoint.</td></tr>';
+        if (recentBody) recentBody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;">Recent activity is unavailable until a privacy-safe administrator endpoint is configured.</td></tr>';
+    };
+
+    const renderStatus = (isOpen, closeAt) => {
+        const label = isOpen ? 'Voting Open' : 'Voting Closed';
+        if (statusBadge) statusBadge.textContent = label;
+        if (banner) {
+            banner.style.borderLeftColor = isOpen ? '#16a34a' : '#ef4444';
+            banner.setAttribute('aria-label', label);
+        }
+        if (bannerText) {
+            bannerText.textContent = isOpen
+                ? 'Public voting is OPEN. Authenticated voters may cast one ballot per category.'
+                : 'Public voting is CLOSED. New ballots are blocked by the voting setting.';
+        }
+        if (openButton) openButton.disabled = isOpen;
+        if (closeButton) closeButton.disabled = !isOpen;
+        const toggle = get('toggle-voting');
+        if (toggle) {
+            toggle.disabled = false;
+            toggle.textContent = isOpen ? 'Close Voting' : 'Open Voting';
+            toggle.className = isOpen ? 'btn-warning' : 'btn-primary';
+        }
+        const timer = get('voting-timer');
+        if (timer) {
+            if (closeAt && Number.isFinite(Date.parse(closeAt))) {
+                timer.textContent = new Date(closeAt).toLocaleString();
+                timer.title = 'Scheduled close time reminder; server-side automatic closure is not yet enforced.';
+            } else {
+                timer.textContent = 'Not scheduled';
+                timer.title = 'No close-time reminder has been set.';
+            }
+        }
+    };
+
+    if (bannerText) bannerText.textContent = 'Checking voting settings…';
+    [openButton, closeButton, scheduleButton, get('toggle-voting')].forEach(button => {
+        if (button) button.disabled = true;
+    });
+
     try {
-        // 1. Fetch settings
-        const { data: settings, error: setErr } = await supabase
-            .from('settings')
-            .select('key, value');
+        const { data: settings, error } = await supabase.from('settings')
+            .select('key,value')
+            .in('key', ['voting_open','voting_close_time']);
+        if (error) throw error;
+        const settingMap = new Map((settings || []).map(item => [item.key, item.value]));
+        if (!settingMap.has('voting_open')) throw new Error('The voting_open setting is missing.');
+        let isOpen = String(settingMap.get('voting_open')).toLowerCase() === 'true';
+        let closeAt = settingMap.get('voting_close_time') || '';
 
-        if (setErr) {
-            console.error('Settings fetch error:', setErr);
-            document.getElementById('voting-banner-text').textContent = '⚠️ Error loading settings. Check RLS policies.';
-            return;
+        if (closeTimeInput && closeAt && Number.isFinite(Date.parse(closeAt))) {
+            const local = new Date(closeAt);
+            closeTimeInput.value = new Date(local.getTime() - local.getTimezoneOffset() * 60000).toISOString().slice(0,16);
         }
+        renderStatus(isOpen, closeAt);
 
-        // ... rest of your existing code for settings, banner, etc.
+        const updateSetting = async (key, value) => {
+            const { data, error: updateError } = await supabase.from('settings')
+                .update({ value: String(value) })
+                .eq('key', key)
+                .select('key,value')
+                .maybeSingle();
+            if (updateError) throw updateError;
+            if (!data) throw new Error('No setting was updated. Confirm administrator permissions and that the setting exists.');
+            return data.value;
+        };
 
-        // 2. Fetch stats with error handling
-        let totalVotes = 0, todayVotes = 0, uniqueVoters = 0;
-        try {
-            const { count, error } = await supabase.from('votes').select('*', { count: 'exact', head: true });
-            if (error) throw error;
-            totalVotes = count || 0;
-        } catch (e) { console.error('Total votes error:', e); }
-
-        try {
-            const { count, error } = await supabase.from('votes')
-                .select('*', { count: 'exact', head: true })
-                .gte('created_at', new Date().toISOString().slice(0,10));
-            if (error) throw error;
-            todayVotes = count || 0;
-        } catch (e) { console.error('Today votes error:', e); }
-
-        try {
-            const { data, error } = await supabase.rpc('count_unique_voters');
-            if (error) throw error;
-            uniqueVoters = data || 0;
-        } catch (e) { console.error('Unique voters error:', e); }
-
-        document.getElementById('total-votes').textContent = totalVotes;
-        document.getElementById('votes-today').textContent = todayVotes;
-        document.getElementById('unique-voters').textContent = uniqueVoters;
-
-        // 3. Per‑nominee counts with fallback
-        const nomineeTbody = document.getElementById('nominee-votes-tbody');
-        try {
-            const { data: nomineeCounts, error } = await supabase.rpc('get_nominee_vote_counts');
-            if (error) throw error;
-            nomineeTbody.innerHTML = '';
-            if (nomineeCounts && nomineeCounts.length) {
-                nomineeCounts.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding:10px;">${row.nominee_name}</td>
-                        <td style="padding:10px;">${row.category}</td>
-                        <td style="padding:10px;text-align:center;font-weight:600;">${row.vote_count}</td>
-                    `;
-                    nomineeTbody.appendChild(tr);
-                });
-            } else {
-                nomineeTbody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;color:var(--text-muted);">No votes yet.</td></tr>';
+        const setVoting = async nextOpen => {
+            const action = nextOpen ? 'OPEN' : 'CLOSE';
+            if (!window.confirm(nextOpen
+                ? 'Open public voting now? Authenticated voters will be able to cast ballots.'
+                : 'Close public voting now? New ballots will be blocked.')) return;
+            [openButton, closeButton, get('toggle-voting')].forEach(button => { if (button) button.disabled = true; });
+            if (bannerText) bannerText.textContent = nextOpen ? 'Opening voting…' : 'Closing voting…';
+            try {
+                await updateSetting('voting_open', nextOpen ? 'true' : 'false');
+                isOpen = nextOpen;
+                renderStatus(isOpen, closeAt);
+            } catch (updateError) {
+                console.error('Voting control update failed:', updateError);
+                if (bannerText) bannerText.textContent = 'Voting status was not changed. Check administrator permissions.';
+                window.alert('Could not update voting. No setting was changed.');
+                renderStatus(isOpen, closeAt);
             }
-        } catch (e) {
-            console.error('Nominee counts error:', e);
-            nomineeTbody.innerHTML = '<tr><td colspan="3" style="padding:15px;text-align:center;color:red;">Could not load counts. Check RPC permissions.</td></tr>';
+        };
+
+        if (openButton) openButton.onclick = () => setVoting(true);
+        if (closeButton) closeButton.onclick = () => setVoting(false);
+        const toggle = get('toggle-voting');
+        if (toggle) toggle.onclick = () => setVoting(!isOpen);
+
+        if (scheduleButton) {
+            scheduleButton.disabled = false;
+            scheduleButton.onclick = async () => {
+                if (!closeTimeInput?.value) {
+                    window.alert('Choose a close-time reminder first.');
+                    return;
+                }
+                const scheduled = new Date(closeTimeInput.value);
+                if (!Number.isFinite(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
+                    window.alert('Choose a future date and time.');
+                    return;
+                }
+                scheduleButton.disabled = true;
+                try {
+                    closeAt = await updateSetting('voting_close_time', scheduled.toISOString());
+                    renderStatus(isOpen, closeAt);
+                    window.alert('Close-time reminder saved. Important: this is currently a dashboard reminder only; server-side automatic closure still needs a database policy or scheduled backend job.');
+                } catch (updateError) {
+                    console.error('Close-time reminder update failed:', updateError);
+                    window.alert('Could not save the close-time reminder. Check administrator permissions.');
+                } finally {
+                    scheduleButton.disabled = false;
+                }
+            };
         }
 
-        // 4. Recent votes with fallback
-        const recentTbody = document.getElementById('recent-votes-tbody');
-        try {
-            const { data: recentVotes, error } = await supabase
-                .from('vote_details')
-                .select('voter_email, category, nominee_name:nomination_id(nominee_name), created_at')
-                .order('created_at', { ascending: false })
-                .limit(50);
+        // Do not query vote_details or count rows visible only to the current voter.
+        // The current RLS policies do not provide a trustworthy global admin count.
+        setStatsRestricted();
 
-            if (error) throw error;
-            recentTbody.innerHTML = '';
-            if (recentVotes && recentVotes.length) {
-                recentVotes.forEach(v => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding:10px;">${new Date(v.created_at).toLocaleString()}</td>
-                        <td style="padding:10px;">${v.voter_email}</td>
-                        <td style="padding:10px;">${v.category}</td>
-                        <td style="padding:10px;">${v.nominee_name}</td>
-                    `;
-                    recentTbody.appendChild(tr);
-                });
-            } else {
-                recentTbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;color:var(--text-muted);">No recent votes.</td></tr>';
-            }
-        } catch (e) {
-            console.error('Recent votes error:', e);
-            recentTbody.innerHTML = '<tr><td colspan="4" style="padding:15px;text-align:center;color:red;">Error loading activity.</td></tr>';
+        const exportVotes = get('export-votes-btn');
+        if (exportVotes) {
+            exportVotes.disabled = true;
+            exportVotes.title = 'Export is disabled until a secured administrator-only vote summary endpoint is available.';
         }
-
-        // 5. Re‑attach button handlers (they already exist, but ensure they are not overwritten multiple times)
-        // Remove any duplicate listeners by using `onclick` assignment directly (already done)
-        // The rest of your handlers remain unchanged.
-
+        const refresh = get('refresh-stats-btn');
+        if (refresh) refresh.onclick = loadVoting;
     } catch (error) {
-        console.error('loadVoting fatal error:', error);
-        // Display a generic error banner
-        const bannerText = document.getElementById('voting-banner-text');
-        if (bannerText) bannerText.textContent = '❌ Failed to load voting data. Check console for details.';
+        console.error('Voting dashboard load failed:', error);
+        if (bannerText) bannerText.textContent = 'Unable to verify voting settings. Voting controls are disabled.';
+        if (statusBadge) statusBadge.textContent = 'Status Unavailable';
+        [openButton, closeButton, scheduleButton, get('toggle-voting'), get('export-votes-btn')].forEach(button => {
+            if (button) button.disabled = true;
+        });
+        setStatsRestricted();
     }
 }
 
