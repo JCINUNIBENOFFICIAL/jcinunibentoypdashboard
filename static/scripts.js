@@ -841,8 +841,8 @@ navItems.forEach(item => {
 
                 // Count finalists for this category
                 const finalistCount = finalistList.filter(n => n.category === cat.name).length;
-                const statusText = finalistCount > 0 ? 'Completed' : 'Not Started';
-                const statusClass = finalistCount > 0 ? 'status-badge verified' : 'status-badge';
+                const statusText = finalistCount > 0 ? 'Stage labels exist — review required' : 'Not Started';
+                const statusClass = finalistCount > 0 ? 'status-badge' : 'status-badge';
 
                 const card = document.createElement('div');
                 card.className = 'category-card';
@@ -1142,190 +1142,147 @@ $$ LANGUAGE plpgsql;
 */
 
     async function openWorkflowModal(categoryName) {
-        // 1. Fetch all nominations for this category
-        const { data: nominations, error } = await supabase
-            .from('nominations')
-            .select('*')
-            .eq('category', categoryName);
+        const modal = document.getElementById('detailsModal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSubtitle = document.getElementById('modal-subtitle');
+        const modalBody = document.getElementById('modal-data');
+        if (!modal || !modalTitle || !modalSubtitle || !modalBody) return;
 
-        if (error || !nominations) {
-            alert('Could not fetch nominations');
-            return;
-        }
+        modalTitle.textContent = `Shortlist Preview: ${categoryName}`;
+        modalSubtitle.textContent = 'Ranking is based on nomination volume, not judging scores or final award decisions.';
+        modalBody.innerHTML = '<p>Loading nomination records…</p>';
+        modal.style.display = 'flex';
 
-        // 2. Group by normalized name, count nominations
-        const groups = {};
-        nominations.forEach(nom => {
-            const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
-            if (!groups[key]) {
-                groups[key] = {
-                    displayName: nom.nominee_name.trim(),
-                    count: 0,
-                    ids: [],
-                    records: []
-                };
-            }
-            groups[key].count++;
-            groups[key].ids.push(nom.id);
-            groups[key].records.push(nom);
-        });
+        try {
+            // Fetch all records so the ranking is not silently truncated by the REST row limit.
+            const nominations = await fetchAllRows(() =>
+                supabase.from('nominations')
+                    .select('id, nominee_name, nominee_email, category, flagged, created_at, stage')
+                    .eq('category', categoryName)
+            );
 
-        const groupedList = Object.values(groups).sort((a, b) => b.count - a.count); // descending by count
-
-        // Store for the modal steps
-        const workflowData = {
-            category: categoryName,
-            groupedCandidates: groupedList,
-            selectedCount: 5 // default
-        };
-
-        function showStep1() {
-            const modal = document.getElementById('detailsModal');
-            document.getElementById('modal-title').textContent = `Judgement: ${categoryName}`;
-            document.getElementById('modal-subtitle').textContent = 'Step 1: Set finalist count';
-            document.getElementById('modal-data').innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <p>How many finalists do you want to advance?</p>
-                <input type="number" id="finalist-count-input" value="5" min="1" max="${groupedList.length}" 
-                    style="width: 100px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; text-align: center;">
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-                    <button class="btn-secondary close-modal">Cancel</button>
-                    <button class="btn-primary" id="next-to-step2">Next</button>
-                </div>
-            </div>
-        `;
-            modal.style.display = 'flex';
-
-            document.getElementById('next-to-step2').onclick = () => {
-                const count = parseInt(document.getElementById('finalist-count-input').value, 10) || 5;
-                workflowData.selectedCount = Math.min(count, groupedList.length);
-                showStep2(workflowData);
-            };
-        }
-
-        function showStep2(data) {
-            const modal = document.getElementById('detailsModal');
-            document.getElementById('modal-subtitle').textContent = 'Step 2: Review and adjust candidates';
-
-            // Build the candidate list HTML
-            let html = `<div style="max-height: 450px; overflow-y: auto;">`;
-            html += `<p style="margin-bottom: 10px; color: var(--text-muted);">Top ${data.selectedCount} selected by nomination count. You can manually adjust.</p>`;
-            html += `<table style="width: 100%; border-collapse: collapse;">`;
-            html += `<thead><tr>
-            <th></th>
-            <th>Nominee</th>
-            <th>Nominations</th>
-            <th>Flagged</th>
-            <th>Actions</th>
-        </tr></thead><tbody>`;
-
-            data.groupedCandidates.forEach((candidate, index) => {
-                const checked = index < data.selectedCount ? 'checked' : '';
-                const flagged = candidate.records.some(r => r.flagged);
-                html += `<tr>
-                <td style="padding: 8px;"><input type="checkbox" class="candidate-checkbox" data-index="${index}" ${checked}></td>
-                <td style="padding: 8px; font-weight: 600;">${candidate.displayName}</td>
-                <td style="padding: 8px;">${candidate.count}</td>
-                <td style="padding: 8px;">${flagged ? '<i class="bx bxs-flag" style="color: #ef4444;"></i>' : '—'}</td>
-                <td style="padding: 8px; display: flex; gap: 4px;">
-                    <button class="view-btn flag-candidate-btn" data-name="${candidate.displayName}" data-ids="${candidate.ids.join(',')}">Flag</button>
-                    <button class="view-btn merge-candidate-btn" data-name="${candidate.displayName}">Merge</button>
-                    <button class="view-btn remove-candidate-btn" data-name="${candidate.displayName}" data-ids="${candidate.ids.join(',')}" style="color: #ef4444;">Remove</button>
-                </td>
-            </tr>`;
-            });
-            html += `</tbody></table></div>`;
-            html += `<div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-            <button class="btn-secondary close-modal">Cancel</button>
-            <button class="btn-primary" id="confirm-finalists">Confirm & Advance</button>
-        </div>`;
-
-            document.getElementById('modal-data').innerHTML = html;
-            modal.style.display = 'flex';
-
-            // Handle Confirm
-            document.getElementById('confirm-finalists').onclick = async () => {
-                const checkboxes = document.querySelectorAll('.candidate-checkbox:checked');
-                const selectedNames = [];
-                const selectedIds = [];
-                checkboxes.forEach(cb => {
-                    const idx = cb.getAttribute('data-index');
-                    const candidate = data.groupedCandidates[idx];
-                    selectedNames.push(candidate.displayName);
-                    selectedIds.push(...candidate.ids);
-                });
-
-                if (selectedIds.length === 0) {
-                    alert('Please select at least one finalist.');
-                    return;
-                }
-
-                // Update stage to 'finalist' for selected, and keep others as 'nominated'
-                try {
-                    // First set all nominations in this category to 'nominated' (reset)
-                    await supabase.from('nominations').update({ stage: 'nominated' }).eq('category', categoryName);
-                    // Then set selected to 'finalist'
-                    await supabase.from('nominations').update({ stage: 'finalist' }).in('id', selectedIds);
-                    alert('Finalists advanced successfully!');
-                    modal.style.display = 'none';
-                    loadFinalists();
-                } catch (err) {
-                    console.error('Failed to update stages', err);
-                    alert('Error updating finalists.');
-                }
-            };
-
-            // Flag button handler (delegation inside modal)
-            document.querySelectorAll('.flag-candidate-btn').forEach(btn => {
-                btn.onclick = async (e) => {
-                    e.stopPropagation();
-                    const ids = btn.getAttribute('data-ids').split(',').map(Number);
-                    const name = btn.getAttribute('data-name');
-                    const flaggedStatus = !btn.classList.contains('flagged'); // toggle
-                    await supabase.from('nominations').update({ flagged: flaggedStatus }).in('id', ids);
-                    // Reload step2 to reflect changes
-                    showStep2(data);
-                };
-            });
-
-            // Merge button opens global merge modal (reuse existing)
-            document.querySelectorAll('.merge-candidate-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    // Show merge suggestions; this will affect global data
-                    showMultipleNominations();
-                    // After merge, we could refresh but easier to close and reopen workflow
-                    // For simplicity, just call showMergeSuggestions and close current modal
-                    document.getElementById('detailsModal').style.display = 'none';
-                };
-            });
-
-            // Remove button (disqualify)
-            document.querySelectorAll('.remove-candidate-btn').forEach(btn => {
-                btn.onclick = async (e) => {
-                    e.stopPropagation();
-                    const ids = btn.getAttribute('data-ids').split(',').map(Number);
-                    const name = btn.getAttribute('data-name');
-                    if (!confirm(`Disqualify "${name}"? This will set stage to 'disqualified'.`)) return;
-                    await supabase.from('nominations').update({ stage: 'disqualified' }).in('id', ids);
-                    // Refresh step2
-                    const updatedNominations = await supabase.from('nominations').select('*').eq('category', categoryName);
-                    // Rebuild groups (quickly)
-                    const newGroups = {};
-                    (updatedNominations.data || []).forEach(nom => {
-                        const key = nom.nominee_name.trim().toLowerCase().replace(/\s+/g, ' ');
-                        if (!newGroups[key]) newGroups[key] = { displayName: nom.nominee_name.trim(), count: 0, ids: [], records: [] };
-                        newGroups[key].count++;
-                        newGroups[key].ids.push(nom.id);
-                        newGroups[key].records.push(nom);
+            // Use nominee email + category as the grouping key. Never merge people on name alone.
+            // If an email is missing, retain the individual nomination as its own candidate.
+            const groups = new Map();
+            nominations.forEach(record => {
+                const email = String(record.nominee_email || '').trim().toLowerCase();
+                const key = email ? `${categoryName.toLowerCase()}::${email}` : `record::${record.id}`;
+                if (!groups.has(key)) {
+                    groups.set(key, {
+                        key,
+                        displayName: String(record.nominee_name || 'Unnamed nominee').trim(),
+                        email,
+                        count: 0,
+                        records: [],
+                        flagged: false,
+                        names: new Set()
                     });
-                    data.groupedCandidates = Object.values(newGroups).sort((a, b) => b.count - a.count);
-                    showStep2(data);
-                };
+                }
+                const group = groups.get(key);
+                group.count += 1;
+                group.records.push(record);
+                group.flagged = group.flagged || record.flagged === true;
+                group.names.add(String(record.nominee_name || '').trim());
             });
-        }
 
-        showStep1();
+            const ranked = [...groups.values()].sort((a, b) =>
+                b.count - a.count ||
+                a.displayName.localeCompare(b.displayName) ||
+                a.key.localeCompare(b.key)
+            );
+
+            const safe = value => escapeHTML(value == null ? '' : String(value));
+            const available = ranked.length;
+            const render = (limit) => {
+                const eligible = ranked.filter(candidate => !candidate.flagged);
+                const initialSelection = new Set(eligible.slice(0, limit).map(candidate => candidate.key));
+                modalBody.innerHTML = `
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div style="padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-slate);">
+                            <strong>Read-only shortlist preview</strong>
+                            <p style="margin:6px 0 0;font-size:13px;color:var(--text-muted);">
+                                No nomination records or finalist statuses will be changed by this preview.
+                                Flagged candidates are shown but are not preselected.
+                            </p>
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+                            <label style="display:flex;flex-direction:column;gap:5px;font-weight:600;">
+                                Shortlist size
+                                <select id="shortlist-size" style="padding:9px;border:1px solid var(--border-color);border-radius:6px;">
+                                    <option value="5" ${limit === 5 ? 'selected' : ''}>Top 5</option>
+                                    <option value="10" ${limit === 10 ? 'selected' : ''}>Top 10</option>
+                                    <option value="20" ${limit === 20 ? 'selected' : ''}>Top 20</option>
+                                </select>
+                            </label>
+                            <span id="shortlist-selection-count" role="status" style="font-size:13px;color:var(--text-muted);"></span>
+                        </div>
+                        <div style="max-height:440px;overflow:auto;">
+                            <table style="width:100%;border-collapse:collapse;">
+                                <thead><tr>
+                                    <th style="padding:8px;text-align:left;">Select</th>
+                                    <th style="padding:8px;text-align:left;">Rank</th>
+                                    <th style="padding:8px;text-align:left;">Nominee</th>
+                                    <th style="padding:8px;text-align:left;">Nominations</th>
+                                    <th style="padding:8px;text-align:left;">Screening</th>
+                                </tr></thead>
+                                <tbody>
+                                    ${ranked.map((candidate, index) => {
+                                        const selected = initialSelection.has(candidate.key);
+                                        const nameConflict = candidate.names.size > 1;
+                                        const warning = candidate.flagged || nameConflict;
+                                        return `<tr style="border-top:1px solid var(--border-color);">
+                                            <td style="padding:8px;"><input type="checkbox" class="shortlist-candidate-checkbox" value="${safe(candidate.key)}" ${selected ? 'checked' : ''} ${candidate.flagged ? 'disabled' : ''}></td>
+                                            <td style="padding:8px;">${index + 1}</td>
+                                            <td style="padding:8px;">
+                                                <strong>${safe(candidate.displayName)}</strong>
+                                                ${nameConflict ? `<div style="font-size:11px;color:#b45309;">Different submitted name variants for this email</div>` : ''}
+                                                <div style="font-size:11px;color:var(--text-muted);">${safe(candidate.email || 'Email unavailable')}</div>
+                                            </td>
+                                            <td style="padding:8px;">${candidate.count}</td>
+                                            <td style="padding:8px;">${candidate.flagged ? '<span style="color:#b91c1c;">Flagged — review required</span>' : warning ? '<span style="color:#b45309;">Review identity</span>' : '<span style="color:#15803d;">Not flagged</span>'}</td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">
+                            ${available} distinct email-based candidate group(s) found from ${nominations.length} nomination record(s).
+                            Selection can be adjusted for review, but is not saved or advanced.
+                        </p>
+                        <div style="display:flex;justify-content:flex-end;">
+                            <button class="btn-secondary close-modal" type="button">Close Preview</button>
+                        </div>
+                    </div>
+                `;
+
+                const updateCount = () => {
+                    const selectedCount = modalBody.querySelectorAll('.shortlist-candidate-checkbox:checked').length;
+                    const countLabel = document.getElementById('shortlist-selection-count');
+                    if (countLabel) countLabel.textContent = `${selectedCount} selected for review`;
+                };
+                modalBody.querySelectorAll('.shortlist-candidate-checkbox').forEach(input => {
+                    input.addEventListener('change', updateCount);
+                });
+                const sizeSelect = document.getElementById('shortlist-size');
+                if (sizeSelect) sizeSelect.addEventListener('change', () => {
+                    render(Number(sizeSelect.value));
+                });
+                updateCount();
+            };
+
+            render(5);
+        } catch (error) {
+            console.error('Shortlist preview failed:', error);
+            modalBody.innerHTML = `
+                <p style="color:#b91c1c;">Could not build the shortlist preview. No records were changed.</p>
+                <p style="font-size:12px;color:var(--text-muted);">${safeErrorMessage(error)}</p>
+                <div style="display:flex;justify-content:flex-end;"><button class="btn-secondary close-modal">Close</button></div>
+            `;
+        }
+    }
+
+    function safeErrorMessage(error) {
+        return escapeHTML(error && error.message ? error.message : 'Please check database access and try again.');
     }
 
     function renderFinalistTable(finalists) {
