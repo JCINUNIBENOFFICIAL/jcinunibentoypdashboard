@@ -408,7 +408,7 @@ navItems.forEach(item => {
             if (viewKey === 'categories') await loadCategories();
             if (viewKey === 'finalists') await loadFinalists();
             if (viewKey === 'voting') await loadVoting();
-            if (viewKey === 'voting') await loadNominationControl();
+            if (viewKey === 'nominations') await loadNominationControl();
             if (viewKey === 'results') await loadResults();   // ✅ now after viewKey is defined
         }
     });
