@@ -952,7 +952,12 @@ async function loadResults() {
                 a.category.localeCompare(b.category) || b.votes-a.votes || a.name.localeCompare(b.name)
             );
             const leaders = new Map();
-            ranked.forEach(row => { if (!leaders.has(row.category) && row.votes > 0) leaders.set(row.category,row); });
+            ranked.forEach(row => {
+                if (row.votes <= 0) return;
+                const current = leaders.get(row.category);
+                if (!current || row.votes > current[0].votes) leaders.set(row.category, [row]);
+                else if (row.votes === current[0].votes) current.push(row);
+            });
 
             body.innerHTML = '';
             if (!ranked.length) {
@@ -978,9 +983,11 @@ async function loadResults() {
             const winnerGrid = document.getElementById('winner-grid');
             if (winnerGrid) {
                 winnerGrid.innerHTML = leaders.size
-                    ? [...leaders.values()].map(row =>
-                        '<div class="card"><h4>' + escapeHTML(row.category) + '</h4><strong>' +
-                        escapeHTML(row.name) + '</strong><p>' + row.votes.toLocaleString() + ' votes</p></div>'
+                    ? [...leaders.entries()].map(([category, tiedLeaders]) =>
+                        '<div class="card"><h4>' + escapeHTML(category) + '</h4>' +
+                        (tiedLeaders.length > 1 ? '<strong>Joint vote leaders</strong>' : '<strong>Leading vote-getter</strong>') +
+                        tiedLeaders.map(row => '<p>' + escapeHTML(row.name) + ' — ' + row.votes.toLocaleString() + ' votes</p>').join('') +
+                        '<small style="color:var(--text-muted);">Uncertified voting position; not an award decision.</small></div>'
                     ).join('')
                     : 'No category has recorded votes yet. No winners are declared by this dashboard.';
             }
