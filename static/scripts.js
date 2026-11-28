@@ -2857,11 +2857,15 @@ if (e.target.classList.contains('view-nominee-finalist') || e.target.closest('.v
                 if (Number(data) !== duplicates.length) throw new Error('The database did not confirm every selected record.');
                 if (typeof showToast === 'function') showToast(duplicates.length + ' nomination record(s) linked successfully.');
                 await loadNominations();
-                const refreshedGroup = (window.__nomineeTrackingGroups || []).find(item =>
+                // Rebuild the tracking groups from the freshly fetched nomination rows.
+                // loadNominations refreshes __ALL_NOMINATIONS__, but it does not rebuild
+                // __nomineeTrackingGroups; searching that cache directly can reopen stale data.
+                showMultipleNominations();
+                const refreshedGroups = window.__nomineeTrackingGroups || [];
+                const refreshedGroupIndex = refreshedGroups.findIndex(item =>
                     item.records.some(record => Number(record.id) === primaryId)
                 );
-                if (refreshedGroup) showNomineeGroupDetail((window.__nomineeTrackingGroups || []).indexOf(refreshedGroup));
-                else showMultipleNominations();
+                if (refreshedGroupIndex >= 0) showNomineeGroupDetail(refreshedGroupIndex);
             } catch (error) {
                 console.error('Nomination merge failed:', error);
                 alert('The records were not merged. ' + (error.message || 'Please confirm the database merge migration has been applied.'));
