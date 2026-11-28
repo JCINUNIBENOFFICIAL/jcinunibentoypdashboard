@@ -1626,12 +1626,10 @@ $$ LANGUAGE plpgsql;
             const nextValue = !group.allEligible;
             const actionLabel = nextValue ? 'Make eligible' : 'Remove eligibility';
             const disabled = ids.length === 0 ? 'disabled' : '';
-            const eligibilityAction = group.isFinalized
-                ? `${eligibilityLabel}<div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Finalized record</div>`
-                : `<div>${eligibilityLabel}</div>
-                   <button type="button" class="view-btn toggle-voting-eligibility"
-                       data-ids="${idsAttribute}" data-ready="${nextValue}" ${disabled}
-                       style="margin-top:7px;">${actionLabel}</button>`;
+            const eligibilityAction = `<div>${eligibilityLabel}</div>
+                <button type="button" class="view-btn toggle-voting-eligibility"
+                    data-ids="${idsAttribute}" data-ready="${nextValue}" ${disabled}
+                    style="margin-top:7px;">${actionLabel}</button>`;
 
             const actionsHtml = group.isFinalized
                 ? '<span style="font-size:12px;color:var(--text-muted);">Locked</span>'
