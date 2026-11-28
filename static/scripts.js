@@ -866,7 +866,7 @@ navItems.forEach(item => {
         // Render finalist-stage nominations; this is not proof of approved finalist records.
         if (finalistResult.error) {
             const finalistBody = document.getElementById('finalist-table-body');
-            if (finalistBody) finalistBody.innerHTML = '<tr><td colspan="5" style="padding:15px;text-align:center;color:#b91c1c;">Could not load the complete finalist-stage list.</td></tr>';
+            if (finalistBody) finalistBody.innerHTML = '<tr><td colspan="6" style="padding:15px;text-align:center;color:#b91c1c;">Could not load the complete finalist-stage list.</td></tr>';
         } else {
             renderFinalistTable(finalistList);
         }
