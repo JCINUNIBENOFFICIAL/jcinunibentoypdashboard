@@ -2590,7 +2590,9 @@ function showNomineeGroupDetail(groupIndex) {
                         ? 'Linked to record #' + escapeHTML(record.merged_into_id)
                         : '<label><input type="radio" name="merge-primary-' + categoryIndex + '" value="' + escapeHTML(record.id) + '"> Keep as primary</label>'}</td>
                     <td style="padding:10px;border-bottom:1px solid var(--bg-slate);">${!alreadyMerged
-                        ? '<label><input type="checkbox" class="merge-source-record" data-category-index="' + categoryIndex + '" value="' + escapeHTML(record.id) + '"> Merge into primary</label>'
+                        ? (idsWithLinkedChildren.has(Number(record.id))
+                            ? '<span title="This record already has linked records and cannot be moved under another primary.">Already has linked records</span>'
+                            : '<label><input type="checkbox" class="merge-source-record" data-category-index="' + categoryIndex + '" value="' + escapeHTML(record.id) + '"> Merge into primary</label>')
                         : '—'}</td>
                     <td style="padding:10px;border-bottom:1px solid var(--bg-slate);"><button class="view-btn view-nomination-detail-btn" data-nomination-id="${escapeHTML(record.id)}">Details</button></td>
                 </tr>`;
