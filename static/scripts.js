@@ -2502,8 +2502,12 @@ function showMultipleNominations() {
     }
 
     const groupsMap = new Map();
+    const rowsById = new Map(rows.map(record => [Number(record.id), record]));
     rows.forEach(nomination => {
-        const display = String(nomination.nominee_name || '').trim() || 'Unnamed nominee';
+        const linkedPrimary = nomination.merged_into_id
+            ? rowsById.get(Number(nomination.merged_into_id))
+            : null;
+        const display = String(linkedPrimary?.nominee_name || nomination.nominee_name || '').trim() || 'Unnamed nominee';
         const key = normalizeNomineeName(display) || '__unnamed__';
         if (!groupsMap.has(key)) {
             groupsMap.set(key, { display, records: [] });
@@ -2561,6 +2565,10 @@ function showNomineeGroupDetail(groupIndex) {
         categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
     });
 
+    const allNominationRows = window.__ALL_NOMINATIONS__ || [];
+    const idsWithLinkedChildren = new Set(allNominationRows
+        .map(record => Number(record.merged_into_id))
+        .filter(Number.isInteger));
     const categories = Array.from(new Set(group.records.map(record =>
         String(record.category || 'Unspecified category').trim() || 'Unspecified category'
     )));
