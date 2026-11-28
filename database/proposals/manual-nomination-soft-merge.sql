@@ -18,6 +18,24 @@ create table if not exists public.nomination_merge_audit (
     performed_at timestamptz not null default now()
 );
 
+-- The merge RPC is later owned by the nominations table owner. Align audit-table
+-- ownership so that this SECURITY DEFINER execution context can insert audit rows
+-- (and use the identity sequence) even when the table owner is not a BYPASSRLS role.
+do $audit_owner$
+declare
+    v_owner name;
+begin
+    select pg_catalog.pg_get_userbyid(c.relowner)
+      into v_owner
+      from pg_catalog.pg_class c
+     where c.oid = 'public.nominations'::regclass;
+    execute pg_catalog.format(
+        'alter table public.nomination_merge_audit owner to %I',
+        v_owner
+    );
+end;
+$audit_owner$;
+
 alter table public.nomination_merge_audit enable row level security;
 revoke all on public.nomination_merge_audit from public, anon, authenticated;
 grant select on public.nomination_merge_audit to authenticated;
