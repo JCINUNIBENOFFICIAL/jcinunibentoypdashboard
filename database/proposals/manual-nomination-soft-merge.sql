@@ -95,6 +95,17 @@ begin
             using errcode = '22023';
     end if;
 
+    -- Keep the relationship one level deep: a record that already has linked
+    -- children cannot itself be moved under another primary record.
+    if exists (
+        select 1
+        from public.nominations child
+        where child.merged_into_id = any(p_duplicate_ids)
+    ) then
+        raise exception 'A selected duplicate already has linked records. Use its existing primary record instead.'
+            using errcode = '22023';
+    end if;
+
     select pg_catalog.jsonb_agg(pg_catalog.to_jsonb(n) order by n.id)
       into v_previous
       from public.nominations n
