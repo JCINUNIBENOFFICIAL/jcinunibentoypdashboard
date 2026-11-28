@@ -1583,46 +1583,111 @@ $$ LANGUAGE plpgsql;
         tbody.innerHTML = '';
 
         if (finalists.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">No finalists yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:15px; text-align:center; color:var(--text-muted);">No finalists yet.</td></tr>';
             return;
         }
 
-        // Group by name for clean display
-        const grouped = {};
+        // Group duplicate nomination rows by nominee and category so eligibility
+        // is managed independently for each category entry.
+        const grouped = new Map();
         finalists.forEach(n => {
-            const key = n.nominee_name.trim();
-            if (!grouped[key]) grouped[key] = { name: key, categories: new Set(), votes: 0, flagged: false, ids: [] };
-            grouped[key].categories.add(n.category);
-            grouped[key].votes += n.votes || 0;
-            if (n.flagged) grouped[key].flagged = true;
-            grouped[key].ids.push(n.id);
+            const name = String(n.nominee_name || 'Unnamed nominee').trim();
+            const category = String(n.category || 'Uncategorised').trim();
+            const key = `${name.toLowerCase()}::${category.toLowerCase()}`;
+            if (!grouped.has(key)) {
+                grouped.set(key, {
+                    name,
+                    category,
+                    votes: 0,
+                    flagged: false,
+                    ids: [],
+                    allEligible: true,
+                    anyEligible: false,
+                    isFinalized: false
+                });
+            }
+            const group = grouped.get(key);
+            group.votes += Number(n.votes || 0);
+            group.flagged = group.flagged || Boolean(n.flagged);
+            group.ids.push(Number(n.id));
+            group.allEligible = group.allEligible && n.ready_for_voting === true;
+            group.anyEligible = group.anyEligible || n.ready_for_voting === true;
+            group.isFinalized = group.isFinalized || Boolean(n.finalized_at);
         });
 
-        Object.values(grouped).forEach(g => {
-            const isFinalized = finalists.some(n => n.nominee_name.trim() === g.name && n.finalized_at);
-            let actionsHtml = '';
-            if (isFinalized) {
-                actionsHtml = `<button class="view-btn view-nominee-finalist" data-ids="${g.ids.join(',')}" data-name="${g.name}">View</button>
-                       <span style="font-size:12px; color:var(--text-muted); margin-left:8px;">Locked</span>`;
-            } else {
-                actionsHtml = `<button class="view-btn view-nominee-finalist" data-ids="${g.ids.join(',')}" data-name="${g.name}">View</button>
-                       <button class="view-btn remove-finalist-btn" data-ids="${g.ids.join(',')}" style="color: #ef4444;">Remove</button>`;
-            }
+        for (const group of grouped.values()) {
+            const ids = group.ids.filter(Number.isInteger);
+            const idsAttribute = ids.join(',');
+            const eligibilityLabel = group.allEligible
+                ? '<span class="status-badge verified">Eligible</span>'
+                : group.anyEligible
+                    ? '<span class="status-badge">Partially eligible</span>'
+                    : '<span class="status-badge">Not eligible</span>';
+            const nextValue = !group.allEligible;
+            const actionLabel = nextValue ? 'Make eligible' : 'Remove eligibility';
+            const disabled = ids.length === 0 ? 'disabled' : '';
+            const eligibilityAction = group.isFinalized
+                ? `${eligibilityLabel}<div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Finalized record</div>`
+                : `<div>${eligibilityLabel}</div>
+                   <button type="button" class="view-btn toggle-voting-eligibility"
+                       data-ids="${idsAttribute}" data-ready="${nextValue}" ${disabled}
+                       style="margin-top:7px;">${actionLabel}</button>`;
+
+            const actionsHtml = group.isFinalized
+                ? '<span style="font-size:12px;color:var(--text-muted);">Locked</span>'
+                : `<button class="view-btn view-nominee-finalist" data-ids="${idsAttribute}" data-name="${escapeHTML(group.name)}">View</button>
+                   <button class="view-btn remove-finalist-btn" data-ids="${idsAttribute}" style="color:#ef4444;">Remove</button>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-        <td style="padding: 12px; font-weight: 600;">${g.name}</td>
-        <td style="padding: 12px;">${[...g.categories].join(', ')}</td>
-        <td style="padding: 12px;">${g.votes}</td>
-        <td style="padding: 12px;">${g.flagged ? '<i class="bx bxs-flag" style="color: #ef4444;"></i>' : '—'}</td>
-        <td style="padding: 12px;">${actionsHtml}</td>
-    `;
+                <td style="padding:12px;font-weight:600;">${escapeHTML(group.name)}</td>
+                <td style="padding:12px;">${escapeHTML(group.category)}</td>
+                <td style="padding:12px;">${group.votes}</td>
+                <td style="padding:12px;">${group.flagged ? '<i class="bx bxs-flag" style="color:#ef4444;"></i>' : '—'}</td>
+                <td style="padding:12px;">${eligibilityAction}</td>
+                <td style="padding:12px;">${actionsHtml}</td>
+            `;
             tbody.appendChild(tr);
-        });
+        }
 
-const uniqueNames = new Set();
-finalists.forEach(n => uniqueNames.add(n.nominee_name.trim()));
-document.getElementById('finalist-count-badge').textContent = uniqueNames.size;
+        const uniqueNames = new Set(finalists.map(n => String(n.nominee_name || '').trim()));
+        const countBadge = document.getElementById('finalist-count-badge');
+        if (countBadge) countBadge.textContent = uniqueNames.size;
+
+        // Assign once per render; the handler updates only ready_for_voting via
+        // a narrowly scoped, administrator-checked database function.
+        tbody.onclick = async (event) => {
+            const button = event.target.closest('.toggle-voting-eligibility');
+            if (!button || button.disabled) return;
+
+            const ids = button.dataset.ids.split(',').map(Number).filter(Number.isInteger);
+            const ready = button.dataset.ready === 'true';
+            if (!ids.length) return;
+
+            const nomineeRow = button.closest('tr');
+            button.disabled = true;
+            button.textContent = 'Saving…';
+
+            const { data, error } = await supabase.rpc('set_nomination_voting_eligibility', {
+                p_nomination_ids: ids,
+                p_ready_for_voting: ready
+            });
+
+            if (error) {
+                console.error('Could not update voting eligibility:', error);
+                alert(error.message || 'Could not update voting eligibility. Please check administrator access and the database function deployment.');
+                button.disabled = false;
+                button.textContent = ready ? 'Make eligible' : 'Remove eligibility';
+                return;
+            }
+
+            if (Number(data) !== ids.length) {
+                alert('The database did not update every nomination in this nominee/category group. Refresh the list and check the records.');
+            } else {
+                alert(`${ready ? 'Nominee marked eligible' : 'Voting eligibility removed'} for ${ids.length} nomination record(s).`);
+            }
+            await loadFinalists();
+        };
     }
 
 function openFinalistProfileModal(name, ids) {
